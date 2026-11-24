@@ -327,6 +327,7 @@ function setHTML(){
   const ps = state.periods.map((p,k)=>`<div class="rrow"><div class="h"><span>Periode ${k+1}</span><span class="mut">${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))}</span></div></div>`).reverse().join('');
   return `<div class="card"><h2>Akun</h2><div>Masuk sebagai <b>${esc(state.name)}</b></div><button class="btn" data-a="logout">Keluar</button></div>
   <div class="card"><h2>Periode</h2>${ps}<button class="btn pri" data-a="openPeriod">+ Mulai periode baru</button>
+    <button class="btn" data-a="editStart">Ubah tanggal mulai periode aktif</button>
     ${state.periods.length>1?`<button class="btn red" data-a="undoPeriod">Batalkan periode terakhir</button>`:''}</div>
   <div class="card"><h2>Tipe pengeluaran</h2><div class="mut" style="margin-bottom:10px">Hapus tipe → pengeluarannya pindah ke "${FALLBACK}".</div>
     ${state.types.map(t=>`<span class="pill">${icon(t)} ${esc(t)}${t===FALLBACK?'':`<button data-a="delType" data-v="${esc(t)}">×</button>`}</span>`).join('')}
@@ -362,7 +363,16 @@ function expenseSheet(){
 }
 
 function periodSheet(){
-  const f = form, last = state.periods[state.periods.length-1];
+  const f = form, last = state.periods[state.periods.length-1], prev = state.periods[state.periods.length-2];
+  if (f.edit){
+    return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><h3>Ubah tanggal mulai periode aktif</h3>
+    <div class="mut">Periode aktif sekarang mulai ${dShort(last)}${prev?` (periode sebelumnya mulai ${dShort(prev)})`:''}.</div>
+    <label class="l">Mulai tanggal</label>
+    <input type="date" id="pDate" value="${f.date}" ${prev?`min="${addDays(prev,1)}"`:''} max="${today()}">
+    <div class="mut" style="margin-top:10px">Periode aktif akan mulai <b>${dFull(f.date)}</b>.</div>
+    ${f.err?`<div class="err">${f.err}</div>`:''}
+    <button class="btn pri" data-a="savePeriod">Simpan tanggal</button></div>`;
+  }
   const d = f.pmode==='today' ? today() : f.date;
   const n = state.expenses.filter(e=>e.date>=d).length;
   return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><h3>Mulai periode baru</h3>
@@ -372,7 +382,8 @@ function periodSheet(){
   ${f.pmode==='custom'?`<input type="date" id="pDate" value="${f.date}" min="${addDays(last,1)}" max="${today()}">`:''}
   <div class="mut" style="margin-top:10px">Mulai <b>${dFull(d)}</b> · ${n} transaksi akan masuk periode baru.</div>
   ${f.err?`<div class="err">${f.err}</div>`:''}
-  <button class="btn pri" data-a="savePeriod">Mulai periode baru</button></div>`;
+  <button class="btn pri" data-a="savePeriod">Mulai periode baru</button>
+  <button class="btn" data-a="editStart">Atau ubah tanggal mulai periode aktif (${dShort(last)})</button></div>`;
 }
 
 /* ---------- actions ---------- */
@@ -424,8 +435,18 @@ const A = {
   },
   delExp:()=>{ if(!confirm('Hapus pengeluaran ini?')) return; deleteDoc(doc(db,'users',state.uid,'expenses',form.id)).catch(fail); closeSheet(); },
   openPeriod:()=>{ form={kind:'per',pmode:'today',date:today(),err:''}; showSheet(); },
+  editStart:()=>{ form={kind:'per',edit:true,date:state.periods[state.periods.length-1],err:''}; showSheet(); },
   pmode:d=>{ form.pmode=d.v; form.err=''; showSheet(); },
   savePeriod:()=>{
+    if (form.edit){
+      const prev = state.periods[state.periods.length-2], d = form.date;
+      if(!d){ form.err='Pilih tanggal.'; return showSheet(); }
+      if(d>today()){ form.err='Tanggal tidak boleh di masa depan.'; return showSheet(); }
+      if(prev && d<=prev){ form.err=`Tanggal harus setelah awal periode sebelumnya (${dShort(prev)}).`; return showSheet(); }
+      state.periods = [...state.periods.slice(0,-1), d]; ui.viewIdx = state.periods.length-1;
+      updateDoc(userRef(),{periods:state.periods}).catch(fail);
+      closeSheet(); render(); return;
+    }
     const last = state.periods[state.periods.length-1], d = form.pmode==='today'?today():form.date;
     if(!d) { form.err='Pilih tanggal.'; return showSheet(); }
     if(d>today()){ form.err='Tanggal tidak boleh di masa depan.'; return showSheet(); }
