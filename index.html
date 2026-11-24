@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#5b5bf0">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pengeluaran">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <title>Tracker Pengeluaran</title>
 <style>
 :root{--bg:#f3f4f9;--card:#fff;--tx:#161a2b;--mut:#7a8199;--bd:#e6e9f2;--pri:#5b5bf0;--pri2:#8b5cf6;--red:#e11d48;--green:#16a34a;--sh:0 4px 20px rgba(30,40,90,.07)}
@@ -682,6 +687,11 @@ document.addEventListener('keydown', e => {
   else if ((e.key==='Enter'||e.key===' ') && e.target.classList && e.target.classList.contains('it')){ e.preventDefault(); A.edit(e.target.dataset); }
 });
 
+/* ---------- PWA ---------- */
+if (typeof navigator!=='undefined' && 'serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
 /* ---------- firebase ---------- */
 if (firebaseConfig.apiKey === 'ISI_DISINI'){ view='config'; render(); }
 else {
@@ -691,8 +701,14 @@ else {
   let loaded = {u:false,x:false};
   const ready = () => {
     if (loaded.u && loaded.x){
-      if (view!=='app'){ view='app'; ui.viewIdx = state.periods.length-1; }
+      const first = view!=='app';
+      if (first){ view='app'; ui.viewIdx = state.periods.length-1; }
       render();
+      // jalan pintas: buka aplikasi dengan ?add=1 langsung menampilkan form tambah pengeluaran
+      if (first && new URLSearchParams(location.search).get('add')==='1'){
+        history.replaceState(null,'',location.pathname);
+        A.openAdd();
+      }
     }
   };
   const onErr = e => { console.error(e); view='error'; ui.err='Tidak bisa membaca data. Cek Firestore rules & koneksi.<br><small>'+esc(e.message||e)+'</small>'; render(); };
