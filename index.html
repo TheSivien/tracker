@@ -105,6 +105,17 @@ label.l{display:block;font-size:13px;color:var(--mut);margin:14px 0 6px}
 .who button.on{border-color:var(--pri)}
 .who em{display:grid;place-items:center;width:60px;height:60px;border-radius:50%;margin:0 auto 8px;font-style:normal;font-size:26px;color:#fff;background:linear-gradient(135deg,var(--pri),var(--pri2))}
 .empty{text-align:center;color:var(--mut);padding:24px 0}
+.neg{color:var(--red)}
+.hero .two{display:flex;gap:8px;margin-top:14px}
+.hero .two button{flex:1;background:#fff;color:var(--pri);font-weight:700;padding:11px;border-radius:12px}
+.sw{flex:none;width:52px;height:30px;border-radius:99px;background:var(--bd);position:relative;transition:.2s}
+.sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw.on{background:var(--pri)}
+.sw.on i{left:25px}
+.shh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
+.close{flex:none;width:36px;height:36px;border-radius:50%;background:var(--bg);color:var(--mut);font-size:16px;display:grid;place-items:center}
+.it{cursor:pointer}
+.eb{display:inline-block;font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--bd);color:var(--pri);background:var(--card);margin-top:4px;font-weight:600}
 pre{white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:10px;font-size:12px;text-align:left}
 </style>
 </head>
@@ -162,8 +173,8 @@ const group = (list, fn) => { const m = {}; list.forEach(e => { const k = fn(e);
 
 /* ---------- state ---------- */
 let view = 'loading';
-let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', loginUser: localStorage.getItem('lastUser')||'', err:'' };
-let state = { name:'', uid:'', periods:[], types:[], expenses:[], pending:false };
+let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', more:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
+let state = { name:'', uid:'', periods:[], periodNames:[], types:[], expenses:[], pending:false, balances:{}, balanceLog:[], balanceOn:false };
 let form = null;
 let unsubs = [];
 let db, auth;
@@ -172,6 +183,9 @@ const periodIdxOf = date => { for (let i=state.periods.length-1;i>0;i--) if (dat
 const inP = (e,i) => { if (i>0 && e.date < state.periods[i]) return false; const nx = state.periods[i+1]; return !(nx && e.date >= nx); };
 const periodStart = i => { if (i>0) return state.periods[i]; const ds = state.expenses.map(e=>e.date).concat(state.periods[0]); return ds.sort()[0]; };
 const periodEnd = i => state.periods[i+1] ? addDays(state.periods[i+1],-1) : today();
+const pname = i => ((state.periodNames[i]||'').trim()) || `Periode ${i+1}`;
+// saldo = angka dasar terakhir − pengeluaran (metode sama) yang dicatat setelah angka dasar itu
+const balOf = m => { const b = state.balances[m]; if(!b) return null; return b.base - sum(state.expenses.filter(e=>e.method===m && (e.createdAt||0) > b.at)); };
 const userRef = () => doc(db,'users',state.uid);
 const expCol = () => collection(db,'users',state.uid,'expenses');
 
@@ -182,8 +196,10 @@ function render(){
   if (view==='error') return app.innerHTML = `<div class="center">${ui.err}</div>`;
   if (view==='login') return app.innerHTML = loginHTML();
   ui.viewIdx = Math.max(0, Math.min(ui.viewIdx, state.periods.length-1));
+  if (ui.tab==='bal' && !state.balanceOn) ui.tab='home';
   const tabs = [['home','🏠','Beranda'],['recap','📊','Rekap'],['hist','🧾','Riwayat'],['set','⚙️','Pengaturan']];
-  const body = {home:homeHTML,recap:recapHTML,hist:histHTML,set:setHTML}[ui.tab]();
+  if (state.balanceOn) tabs.splice(3,0,['bal','👛','Saldo']);
+  const body = {home:homeHTML,recap:recapHTML,hist:histHTML,bal:balHTML,set:setHTML}[ui.tab]();
   app.innerHTML = `
     <div class="top"><h1>Halo, ${esc(state.name)} 👋</h1><div class="sync ${state.pending?'p':''}"><i></i>${state.pending?'Menyimpan…':'Tersinkron'}</div></div>
     ${body}
@@ -205,7 +221,7 @@ function loginHTML(){
 const barRow = (label,val,max,color,extra='') => `<div class="br"><div class="brh"><span>${label}</span><b>${rp(val)}${extra}</b></div><div class="bar"><i style="width:${max?val/max*100:0}%;background:${color}"></i></div></div>`;
 
 function periodSelect(){
-  const opts = state.periods.map((p,i)=>`<option value="${i}" ${i===ui.viewIdx?'selected':''}>Periode ${i+1} · ${dShort(periodStart(i))}${i===state.periods.length-1?' (aktif)':''}</option>`).reverse().join('');
+  const opts = state.periods.map((p,i)=>`<option value="${i}" ${i===ui.viewIdx?'selected':''}>${esc(pname(i))} · ${dShort(periodStart(i))}${i===state.periods.length-1?' (aktif)':''}</option>`).reverse().join('');
   return `<select class="sel" data-c="viewIdx">${opts}</select>`;
 }
 
@@ -225,10 +241,11 @@ function homeHTML(){
   const monT = sum(all.filter(e=>e.date.slice(0,7)===mk)), lmT = sum(all.filter(e=>e.date.slice(0,7)===lm));
 
   let h = periodSelect();
-  h += `<div class="hero"><small>Periode ${i+1}${isCur?' · aktif':''}</small><div class="big">${rp(total)}</div>
+  h += `<div class="hero"><small>${esc(pname(i))}${isCur?' · aktif':''}</small><div class="big">${rp(total)}</div>
     <small>${dShort(st)} – ${isCur?'sekarang':dShort(en)} · ${days} hari</small>
-    <div class="chips"><span class="c">≈ ${rpS(total/days)}/hari</span><span class="c">${L.length} transaksi</span></div>
+    <div class="chips"><span class="c">≈ ${rpS(total/days)}/hari</span><span class="c">${L.length} transaksi</span><button class="c" data-a="renamePeriod" data-i="${i}" style="border:0;color:#fff">✏️ Ubah nama</button></div>
     ${isCur?`<button class="nb" data-a="openPeriod">+ Mulai periode baru</button>`:''}</div>`;
+  h += balanceCardHTML();
   h += `<div class="grid3">
     <div class="st"><small>Hari ini</small><b>${rpS(todayT)}</b><span>Kemarin ${rpS(yT)}</span></div>
     <div class="st"><small>Minggu ini</small><b>${rpS(weekT)}</b><span>Lalu ${rpS(lwT)}</span></div>
@@ -274,12 +291,115 @@ function homeHTML(){
     <div class="ins"><em>🧮</em><div>Rata-rata per transaksi<br><b>${rp(total/L.length)}</b></div></div>
     <div class="ins"><em>📅</em><div>Hari aktif belanja<br><b>${Object.keys(byDate).length}</b> dari ${days} hari</div></div></div>`;
   h += `<div class="card"><h2>5 terbesar</h2>${big.slice(0,5).map(itemHTML).join('')}</div>`;
+  h += `<button class="btn" data-a="toggleMore">${ui.more?'Sembunyikan ▴':'Tampilkan lebih ▾'}</button>`;
+  if (ui.more) h += moreHTML({L,i,total,days,st,byDate});
   return h;
 }
 
+function balanceCardHTML(){
+  if (!state.balanceOn) return '';
+  const rows = Object.keys(METHODS).map(m=>[m,balOf(m)]).filter(([,v])=>v!==null && v!==0);
+  if (!rows.length) return `<div class="card"><h2>Saldo</h2><div class="mut">Tracker saldo aktif. Isi saldo tiap metode di menu Saldo.</div><button class="eb" data-a="tab" data-v="bal">Isi saldo →</button></div>`;
+  const tot = rows.reduce((a,[,v])=>a+v,0);
+  return `<div class="card"><h2>Saldo saat ini</h2><div style="font-size:26px;font-weight:800" class="${tot<0?'neg':''}">${rp(tot)}</div>
+    <div style="margin-top:8px">${rows.map(([m,v])=>`<div class="brh" style="margin:6px 0"><span><i class="dot" style="background:${METHODS[m]}"></i> ${m}</span><b class="${v<0?'neg':''}">${rp(v)}</b></div>`).join('')}</div>
+    <button class="eb" data-a="tab" data-v="bal">Kelola saldo →</button></div>`;
+}
+
+function balHTML(){
+  const rows = Object.keys(METHODS).map(m=>[m,balOf(m)]);
+  const tot = rows.reduce((a,[,v])=>a+(v||0),0);
+  let h = `<div class="hero"><small>Total saldo</small><div class="big">${rp(tot)}</div>
+    <small>Berkurang otomatis setiap pengeluaran, bertambah saat kamu menambah saldo.</small>
+    <div class="two"><button data-a="openBal" data-mode="add">+ Tambah saldo</button><button data-a="openBal" data-mode="set">✏️ Edit saldo</button></div></div>`;
+  h += `<div class="card"><h2>Saldo per metode</h2>${rows.map(([m,v])=>`<div class="rrow"><div class="h"><div><i class="dot" style="background:${METHODS[m]}"></i> ${m}<div>${v===null?'<span class="mut">Belum diisi</span>':`<b class="${v<0?'neg':''}">${rp(v)}</b>`}</div></div>
+    <div><button class="eb" data-a="openBal" data-mode="add" data-m="${m}">+ Tambah</button> <button class="eb" data-a="openBal" data-mode="set" data-m="${m}">✏️ Edit</button></div></div></div>`).join('')}</div>`;
+  const lg = state.balanceLog.slice(0,15);
+  h += `<div class="card"><h2>Riwayat saldo</h2>${lg.length ? lg.map(x=>{
+    const d = new Date(x.t);
+    return `<div class="rrow"><div class="h"><div>${x.kind==='add'?'Tambah saldo':'Edit saldo'} · ${esc(x.m)}<div class="mut">${dShort(ymd(d))} ${pad(d.getHours())}:${pad(d.getMinutes())} · ${x.kind==='add'?'jadi '+rp(x.after):'sebelumnya '+rp(x.before)}</div></div><b>${x.kind==='add'?'+ '+rp(x.amount):rp(x.after)}</b></div></div>`;
+  }).join('') : '<div class="empty">Belum ada riwayat.</div>'}</div>`;
+  return h;
+}
+
+function balPreview(){
+  const f = form, cur = balOf(f.method), amt = parseInt(f.amount||'0',10)||0;
+  const after = f.mode==='add' ? (cur||0)+amt : amt;
+  return `Saldo ${f.method}: ${cur===null?'belum diisi':rp(cur)} → ${f.amount===''?'…':rp(after)}`;
+}
+
+function balanceSheet(){
+  const f = form;
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>${f.mode==='add'?'Tambah saldo':'Edit saldo'}</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
+  <div class="seg" style="margin-top:10px"><button class="${f.mode==='add'?'on':''}" data-a="bMode" data-v="add">Tambah saldo</button><button class="${f.mode==='set'?'on':''}" data-a="bMode" data-v="set">Edit saldo</button></div>
+  <div class="mut">${f.mode==='add'?'Menambah ke saldo yang sudah ada (mis. top up atau gajian).':'Menetapkan saldo menjadi angka yang kamu isi (untuk koreksi bila tidak sesuai).'}</div>
+  <label class="l">Metode</label>
+  <div>${Object.keys(METHODS).map(m=>`<button class="pill ${f.method===m?'on':''}" data-a="bMethod" data-v="${m}"><i class="dot" style="background:${METHODS[m]}"></i>${m}</button>`).join('')}</div>
+  <label class="l">${f.mode==='add'?'Jumlah yang ditambahkan':'Saldo yang benar'}</label>
+  <div class="amt"><span>Rp</span><input id="bAmt" inputmode="numeric" placeholder="0" value="${f.amount}" autocomplete="off"></div>
+  <div class="mut" id="bPrev" style="margin-top:6px">${balPreview()}</div>
+  ${f.err?`<div class="err">${f.err}</div>`:''}
+  <button class="btn pri" data-a="saveBal">Simpan</button></div>`;
+}
+
 function itemHTML(e){
-  return `<button class="it" data-a="edit" data-id="${e.id}"><div class="ic" style="background:${col(e.type)}">${icon(e.type)}</div>
-    <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span></div><div class="r">${rp(e.amount)}</div></button>`;
+  return `<div class="it" role="button" tabindex="0" data-a="edit" data-id="${e.id}"><div class="ic" style="background:${col(e.type)}">${icon(e.type)}</div>
+    <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span></div><div class="r">${rp(e.amount)}<br><span class="eb">✏️ Edit</span></div></div>`;
+}
+
+function moreHTML(c){
+  const {L,i,total,days,st,byDate} = c;
+  let h = '';
+  // dibanding periode sebelumnya
+  if (i>0){
+    const tp = sum(state.expenses.filter(e=>inP(e,i-1)));
+    const dp = Math.max(1, diffDays(periodStart(i-1),periodEnd(i-1))+1);
+    const avg = total/days, avgP = tp/dp;
+    const pct = avgP ? Math.round((avg-avgP)/avgP*100) : null;
+    h += `<div class="card"><h2>Dibanding ${esc(pname(i-1))}</h2>
+      <div class="ins"><em>📆</em><div>Rata-rata per hari<br><b>${rp(avg)}</b> vs ${rp(avgP)}${pct===null?'':` <span class="mut">(${pct>0?'+':''}${pct}%)</span>`}</div></div>
+      <div class="ins"><em>💰</em><div>Total<br><b>${rp(total)}</b> vs ${rp(tp)}</div></div>
+      <div class="mut" style="margin-top:6px">Total dipengaruhi lama periode, jadi rata-rata per hari lebih adil untuk dibandingkan.</div></div>`;
+  }
+  // loop harian
+  let run = 0, zero = 0, streak = 0, best = 0, wkDays = 0, weDays = 0;
+  const cum = [];
+  for (let k=0;k<days;k++){
+    const d = addDays(st,k), v = byDate[d]||0, dow = P(d).getDay();
+    run += v; cum.push([d,run]);
+    if (!v){ zero++; streak++; best = Math.max(best,streak); } else streak = 0;
+    if (dow===0||dow===6) weDays++; else wkDays++;
+  }
+  const weTotal = sum(L.filter(e=>{const g=P(e.date).getDay();return g===0||g===6;}));
+  const wkTotal = total - weTotal;
+  const am = L.map(e=>e.amount).sort((a,b)=>a-b);
+  const med = am.length%2 ? am[(am.length-1)/2] : (am[am.length/2-1]+am[am.length/2])/2;
+  const spendDays = Object.entries(byDate).sort((a,b)=>a[1]-b[1]);
+  const cnt = fn => { const m={}; L.forEach(e=>{const k=fn(e);m[k]=(m[k]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]; };
+  const topT = cnt(e=>e.type), topM = cnt(e=>e.method);
+
+  h += `<div class="card"><h2>Statistik lainnya</h2>
+    <div class="ins"><em>🧘</em><div>Hari tanpa pengeluaran<br><b>${zero}</b> dari ${days} hari · terpanjang berturut-turut <b>${best}</b> hari</div></div>
+    <div class="ins"><em>🌱</em><div>Hari terhemat (yang ada pengeluaran)<br><b>${dFull(spendDays[0][0])}</b> · ${rp(spendDays[0][1])}</div></div>
+    <div class="ins"><em>📏</em><div>Median per transaksi<br><b>${rp(med)}</b> · terkecil ${rp(am[0])}</div></div>
+    <div class="ins"><em>🗓️</em><div>Rata-rata per minggu<br><b>${rp(total/days*7)}</b></div></div>
+    <div class="ins"><em>🏖️</em><div>Akhir pekan vs hari kerja (per hari)<br><b>${weDays?rp(weTotal/weDays):'–'}</b> vs <b>${wkDays?rp(wkTotal/wkDays):'–'}</b> · akhir pekan ${Math.round(weTotal/total*100)}% dari total</div></div>
+    <div class="ins"><em>🏷️</em><div>Tipe paling sering<br><b>${esc(topT[0])}</b> · ${topT[1]}x</div></div>
+    <div class="ins"><em>💳</em><div>Metode paling sering<br><b>${esc(topM[0])}</b> · ${topM[1]}x</div></div></div>`;
+
+  // akumulasi
+  const shown = cum.slice(-31);
+  h += `<div class="card"><h2>Akumulasi pengeluaran${cum.length>31?' (31 hari terakhir)':''}</h2><div class="bars">${shown.map(([d,v],k)=>{
+    const lab = (shown.length<=14 || k%5===0 || k===shown.length-1) ? P(d).getDate() : '';
+    return `<div class="b" title="${dShort(d)}: ${rp(v)}"><i style="height:${total?v/total*100:0}%"></i><span>${lab}</span></div>`;
+  }).join('')}</div><div class="mut" style="margin-top:6px">Total berjalan sejak awal periode.</div></div>`;
+
+  // ukuran transaksi
+  const bk = [['< Rp 25 rb',0,25e3],['Rp 25 rb – 100 rb',25e3,1e5],['Rp 100 rb – 500 rb',1e5,5e5],['≥ Rp 500 rb',5e5,Infinity]]
+    .map(([l,a,b])=>[l,L.filter(e=>e.amount>=a&&e.amount<b).length]);
+  const bmx = Math.max(...bk.map(x=>x[1]),1);
+  h += `<div class="card"><h2>Ukuran transaksi</h2>${bk.map(([l,n])=>`<div class="br"><div class="brh"><span>${l}</span><b>${n} transaksi</b></div><div class="bar"><i style="width:${n/bmx*100}%;background:var(--pri)"></i></div></div>`).join('')}</div>`;
+  return h;
 }
 
 function recapHTML(){
@@ -289,17 +409,17 @@ function recapHTML(){
   if (mode==='day'){
     const m = group(L,e=>e.date), c = {}; L.forEach(e=>c[e.date]=(c[e.date]||0)+1);
     rows = Object.keys(m).sort().reverse().map(d=>({label:dFull(d),sub:`${c[d]} transaksi`,total:m[d]}));
-    note = `Periode ${i+1}`;
+    note = esc(pname(i));
   } else if (mode==='week'){
     const m = group(L,e=>weekStart(e.date)), c = {}; L.forEach(e=>{const k=weekStart(e.date);c[k]=(c[k]||0)+1;});
     rows = Object.keys(m).sort().reverse().map(w=>({label:`${dShort(w)} – ${dShort(addDays(w,6))}`,sub:`${c[w]} transaksi`,total:m[w]}));
-    note = `Periode ${i+1} · minggu Senin–Minggu`;
+    note = esc(pname(i)) + ' · minggu Senin–Minggu';
   } else if (mode==='month'){
     const m = group(state.expenses,e=>e.date.slice(0,7)), c = {}; state.expenses.forEach(e=>{const k=e.date.slice(0,7);c[k]=(c[k]||0)+1;});
     rows = Object.keys(m).sort().reverse().map(k=>({label:`${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][+k.slice(5)-1]} ${k.slice(0,4)}`,sub:`${c[k]} transaksi`,total:m[k]}));
     note = 'Semua data';
   } else {
-    rows = state.periods.map((p,k)=>{const l=state.expenses.filter(e=>inP(e,k));return {label:`Periode ${k+1}`,sub:`${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))} · ${l.length} transaksi`,total:sum(l)};}).reverse();
+    rows = state.periods.map((p,k)=>{const l=state.expenses.filter(e=>inP(e,k));return {label:esc(pname(k)),sub:`${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))} · ${l.length} transaksi`,total:sum(l)};}).reverse();
     note = 'Semua periode';
   }
   const mx = Math.max(...rows.map(r=>r.total),1), tot = sum(rows.map(r=>({amount:r.total})));
@@ -324,7 +444,7 @@ function histHTML(){
 }
 
 function setHTML(){
-  const ps = state.periods.map((p,k)=>`<div class="rrow"><div class="h"><span>Periode ${k+1}</span><span class="mut">${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))}</span></div></div>`).reverse().join('');
+  const ps = state.periods.map((p,k)=>`<div class="rrow"><div class="h"><div>${esc(pname(k))}<div class="mut">${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))}</div></div><button class="eb" data-a="renamePeriod" data-i="${k}">✏️ Ubah nama</button></div></div>`).reverse().join('');
   return `<div class="card"><h2>Akun</h2><div>Masuk sebagai <b>${esc(state.name)}</b></div><button class="btn" data-a="logout">Keluar</button></div>
   <div class="card"><h2>Periode</h2>${ps}<button class="btn pri" data-a="openPeriod">+ Mulai periode baru</button>
     <button class="btn" data-a="editStart">Ubah tanggal mulai periode aktif</button>
@@ -332,12 +452,13 @@ function setHTML(){
   <div class="card"><h2>Tipe pengeluaran</h2><div class="mut" style="margin-bottom:10px">Hapus tipe → pengeluarannya pindah ke "${FALLBACK}".</div>
     ${state.types.map(t=>`<span class="pill">${icon(t)} ${esc(t)}${t===FALLBACK?'':`<button data-a="delType" data-v="${esc(t)}">×</button>`}</span>`).join('')}
     <div class="row" style="margin-top:6px"><input type="text" id="sNew" placeholder="Tipe baru…"><button class="btn pri" data-a="addTypeS">Tambah</button></div></div>
+  <div class="card"><h2>Tracker saldo</h2><div class="row" style="align-items:center;justify-content:space-between"><div style="flex:1"><b>${state.balanceOn?'Aktif':'Nonaktif'}</b><div class="mut">Saldo tiap metode berkurang otomatis saat kamu mencatat pengeluaran, dan bertambah saat kamu menambah saldo. Jika dimatikan, data saldo tetap tersimpan.</div></div><button class="sw ${state.balanceOn?'on':''}" data-a="toggleBal" aria-label="Nyalakan atau matikan tracker saldo"><i></i></button></div></div>
   <div class="card"><h2>Data</h2><button class="btn" data-a="exportCsv">Export CSV</button></div>`;
 }
 
 /* ---------- sheets ---------- */
 function showSheet(){
-  sheetEl().innerHTML = form.kind==='exp' ? expenseSheet() : periodSheet();
+  sheetEl().innerHTML = ({exp:expenseSheet,per:periodSheet,ren:renameSheet,bal:balanceSheet})[form.kind]();
   sheetEl().classList.add('open'); document.body.style.overflow='hidden';
 }
 const sheetEl = () => $('sheet');
@@ -345,7 +466,7 @@ function closeSheet(){ sheetEl().classList.remove('open'); sheetEl().innerHTML='
 
 function expenseSheet(){
   const f = form;
-  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><h3>${f.id?'Edit':'Tambah'} pengeluaran</h3>
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>${f.id?'Edit':'Tambah'} pengeluaran</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
   <label class="l">Tanggal</label>
   <div class="seg"><button class="${f.dmode==='today'?'on':''}" data-a="dmode" data-v="today">Hari ini</button><button class="${f.dmode==='custom'?'on':''}" data-a="dmode" data-v="custom">Pilih tanggal</button></div>
   ${f.dmode==='custom'?`<input type="date" id="fDate" value="${f.date}" max="${today()}">`:''}
@@ -357,15 +478,26 @@ function expenseSheet(){
   <div class="mut" id="fPrev" style="margin-top:4px">${f.amount?rp(f.amount):''}</div>
   <label class="l">Metode</label>
   <div>${Object.keys(METHODS).map(m=>`<button class="pill ${f.method===m?'on':''}" data-a="pickMethod" data-v="${m}"><i class="dot" style="background:${METHODS[m]}"></i>${m}</button>`).join('')}</div>
+  ${state.balanceOn && balOf(f.method)!==null ? `<div class="mut">Saldo ${f.method} saat ini: <b class="${balOf(f.method)<0?'neg':''}">${rp(balOf(f.method))}</b></div>` : ''}
   ${f.err?`<div class="err">${f.err}</div>`:''}
   <button class="btn pri" data-a="saveExpense">Simpan</button>
   ${f.id?`<button class="btn red" data-a="delExp">Hapus pengeluaran</button>`:''}</div>`;
 }
 
+function renameSheet(){
+  const f = form;
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>Ubah nama periode</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
+  <div class="mut">Nama bawaan: Periode ${f.i+1} (mulai ${dShort(periodStart(f.i))})</div>
+  <label class="l">Nama periode</label>
+  <input type="text" id="rName" maxlength="40" placeholder="mis. November 2026" value="${esc(f.name)}" autocomplete="off">
+  <div class="mut" style="margin-top:6px">Kosongkan untuk kembali ke nama bawaan.</div>
+  <button class="btn pri" data-a="saveRename">Simpan</button></div>`;
+}
+
 function periodSheet(){
   const f = form, last = state.periods[state.periods.length-1], prev = state.periods[state.periods.length-2];
   if (f.edit){
-    return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><h3>Ubah tanggal mulai periode aktif</h3>
+    return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>Ubah tanggal mulai periode aktif</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
     <div class="mut">Periode aktif sekarang mulai ${dShort(last)}${prev?` (periode sebelumnya mulai ${dShort(prev)})`:''}.</div>
     <label class="l">Mulai tanggal</label>
     <input type="date" id="pDate" value="${f.date}" ${prev?`min="${addDays(prev,1)}"`:''} max="${today()}">
@@ -375,7 +507,7 @@ function periodSheet(){
   }
   const d = f.pmode==='today' ? today() : f.date;
   const n = state.expenses.filter(e=>e.date>=d).length;
-  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><h3>Mulai periode baru</h3>
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>Mulai periode baru</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
   <div class="mut">Periode aktif sekarang mulai ${dShort(last)}. Lupa klik di hari H? Pilih tanggal yang benar.</div>
   <label class="l">Mulai tanggal</label>
   <div class="seg"><button class="${f.pmode==='today'?'on':''}" data-a="pmode" data-v="today">Hari ini</button><button class="${f.pmode==='custom'?'on':''}" data-a="pmode" data-v="custom">Pilih tanggal</button></div>
@@ -435,6 +567,33 @@ const A = {
   },
   delExp:()=>{ if(!confirm('Hapus pengeluaran ini?')) return; deleteDoc(doc(db,'users',state.uid,'expenses',form.id)).catch(fail); closeSheet(); },
   openPeriod:()=>{ form={kind:'per',pmode:'today',date:today(),err:''}; showSheet(); },
+  toggleBal:()=>{
+    state.balanceOn = !state.balanceOn;
+    if (!state.balanceOn && ui.tab==='bal') ui.tab='home';
+    updateDoc(userRef(),{balanceOn:state.balanceOn}).catch(fail); render();
+  },
+  openBal:d=>{ form={kind:'bal',mode:d.mode==='set'?'set':'add',method:d.m||Object.keys(METHODS)[0],amount:'',err:''}; showSheet(); },
+  bMode:d=>{ form.mode=d.v; form.err=''; showSheet(); },
+  bMethod:d=>{ form.method=d.v; showSheet(); },
+  saveBal:()=>{
+    const f = form, m = f.method, amt = parseInt(f.amount,10);
+    if (f.amount==='' || isNaN(amt)){ f.err='Isi nominal dulu.'; return showSheet(); }
+    if (f.mode==='add' && amt<=0){ f.err='Jumlah yang ditambahkan harus lebih dari 0.'; return showSheet(); }
+    const cur = balOf(m)||0, base = f.mode==='add' ? cur+amt : amt, now = Date.now();
+    state.balances = {...state.balances, [m]:{base,at:now}};
+    state.balanceLog = [{t:now,m,kind:f.mode,amount:amt,before:cur,after:base}, ...state.balanceLog].slice(0,100);
+    updateDoc(userRef(),{[`balances.${m}`]:{base,at:now},balanceLog:state.balanceLog}).catch(fail);
+    closeSheet(); render();
+  },
+  toggleMore:()=>{ ui.more=!ui.more; render(); },
+  renamePeriod:d=>{ form={kind:'ren',i:+d.i,name:state.periodNames[+d.i]||'',err:''}; showSheet(); },
+  saveRename:()=>{
+    const names = state.periodNames.slice(); while(names.length<state.periods.length) names.push('');
+    names[form.i] = (form.name||'').trim().slice(0,40);
+    state.periodNames = names;
+    updateDoc(userRef(),{periodNames:names}).catch(fail);
+    closeSheet(); render();
+  },
   editStart:()=>{ form={kind:'per',edit:true,date:state.periods[state.periods.length-1],err:''}; showSheet(); },
   pmode:d=>{ form.pmode=d.v; form.err=''; showSheet(); },
   savePeriod:()=>{
@@ -444,7 +603,7 @@ const A = {
       if(d>today()){ form.err='Tanggal tidak boleh di masa depan.'; return showSheet(); }
       if(prev && d<=prev){ form.err=`Tanggal harus setelah awal periode sebelumnya (${dShort(prev)}).`; return showSheet(); }
       state.periods = [...state.periods.slice(0,-1), d]; ui.viewIdx = state.periods.length-1;
-      updateDoc(userRef(),{periods:state.periods}).catch(fail);
+      savePeriods();
       closeSheet(); render(); return;
     }
     const last = state.periods[state.periods.length-1], d = form.pmode==='today'?today():form.date;
@@ -452,13 +611,13 @@ const A = {
     if(d>today()){ form.err='Tanggal tidak boleh di masa depan.'; return showSheet(); }
     if(d<=last){ form.err=`Tanggal harus setelah awal periode aktif (${dShort(last)}).`; return showSheet(); }
     state.periods = [...state.periods,d]; ui.viewIdx = state.periods.length-1;
-    updateDoc(userRef(),{periods:state.periods}).catch(fail);
+    savePeriods();
     closeSheet(); render();
   },
   undoPeriod:()=>{
     if(!confirm('Batalkan periode terakhir? Transaksinya digabung kembali ke periode sebelumnya.')) return;
     state.periods = state.periods.slice(0,-1); ui.viewIdx = state.periods.length-1;
-    updateDoc(userRef(),{periods:state.periods}).catch(fail); render();
+    savePeriods(); render();
   },
   logout:()=>signOut(auth),
   pickUser:async d=>{
@@ -482,12 +641,17 @@ const A = {
   },
   exportCsv:()=>{
     const q = v => `"${String(v).replace(/"/g,'""')}"`;
-    const rows = [['Tanggal','Tipe','Metode','Jumlah','Periode']].concat(state.expenses.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,e.type,e.method,e.amount,'Periode '+(periodIdxOf(e.date)+1)]));
+    const rows = [['Tanggal','Tipe','Metode','Jumlah','Periode']].concat(state.expenses.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,e.type,e.method,e.amount,pname(periodIdxOf(e.date))]));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv'}));
     a.download = `pengeluaran-${state.name}-${today()}.csv`; a.click();
   }
 };
+function savePeriods(){
+  const n = state.periodNames.slice(0,state.periods.length); while(n.length<state.periods.length) n.push('');
+  state.periodNames = n;
+  return updateDoc(userRef(),{periods:state.periods,periodNames:n}).catch(fail);
+}
 function addType(v){
   const t = state.types.slice(); const i = t.indexOf(FALLBACK);
   t.splice(i<0?t.length:i,0,v); state.types = t;
@@ -502,6 +666,8 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   if (e.target.id==='fAmt'){ const v=e.target.value.replace(/\D/g,''); e.target.value=v; form.amount=v; $('fPrev').textContent = v?rp(v):''; }
   else if (e.target.id==='fNew') form.newType = e.target.value;
+  else if (e.target.id==='rName') form.name = e.target.value;
+  else if (e.target.id==='bAmt'){ const v=e.target.value.replace(/\D/g,''); e.target.value=v; form.amount=v; $('bPrev').textContent = balPreview(); }
 });
 document.addEventListener('change', e => {
   const c = e.target.dataset.c;
@@ -509,6 +675,11 @@ document.addEventListener('change', e => {
   else if (c==='filter'){ ui.filter=e.target.value; render(); }
   else if (e.target.id==='fDate') form.date = e.target.value;
   else if (e.target.id==='pDate'){ form.date = e.target.value; form.err=''; showSheet(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape' && form) closeSheet();
+  else if ((e.key==='Enter'||e.key===' ') && e.target.classList && e.target.classList.contains('it')){ e.preventDefault(); A.edit(e.target.dataset); }
 });
 
 /* ---------- firebase ---------- */
@@ -527,14 +698,16 @@ else {
   const onErr = e => { console.error(e); view='error'; ui.err='Tidak bisa membaca data. Cek Firestore rules & koneksi.<br><small>'+esc(e.message||e)+'</small>'; render(); };
   onAuthStateChanged(auth, user => {
     unsubs.forEach(f=>f()); unsubs=[]; loaded={u:false,x:false};
-    if (!user){ view='login'; state={name:'',uid:'',periods:[],types:[],expenses:[],pending:false}; render(); return; }
+    if (!user){ view='login'; state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false}; render(); return; }
     state.uid = user.uid;
     state.name = Object.keys(ACCOUNTS).find(k=>ACCOUNTS[k].email===user.email) || user.email;
     view='loading'; render();
     unsubs.push(onSnapshot(userRef(), snap => {
-      if (!snap.exists()){ setDoc(userRef(),{periods:[today()],types:DEFAULT_TYPES}).catch(onErr); return; }
+      if (!snap.exists()){ setDoc(userRef(),{periods:[today()],periodNames:[''],types:DEFAULT_TYPES}).catch(onErr); return; }
       const d = snap.data();
       state.periods = [...d.periods].sort();
+      state.balances = d.balances || {}; state.balanceLog = d.balanceLog || []; state.balanceOn = !!d.balanceOn;
+      state.periodNames = state.periods.map((_,k)=>(Array.isArray(d.periodNames)&&d.periodNames[k])||'');
       state.types = d.types && d.types.length ? d.types : DEFAULT_TYPES;
       loaded.u = true; ready();
     }, onErr));
