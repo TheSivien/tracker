@@ -199,6 +199,8 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .hero .big,.st b,.brh b,.amt-s,.rrow .h b,.dg span:last-child,.ins b,.leg b{transition:filter .25s}
 .priv .hero .big,.priv .st b,.priv .brh b,.priv .amt-s,.priv .rrow .h b,.priv .dg span:last-child,.priv .ins b,.priv .leg b{filter:blur(8px)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.note{display:block;font-style:italic}
+.hero .two{gap:6px}.hero .two button{font-size:14px;padding:11px 4px}
 </style>
 </head>
 <body>
@@ -258,7 +260,7 @@ const group = (list, fn) => { const m = {}; list.forEach(e => { const k = fn(e);
 
 /* ---------- state ---------- */
 let view = 'loading';
-let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', more:false, anim:false, animNow:false, animUntil:0, loginShown:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
+let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', q:'', more:false, anim:false, animNow:false, animUntil:0, loginShown:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
 let state = { name:'', uid:'', periods:[], periodNames:[], types:[], expenses:[], pending:false, balances:{}, balanceLog:[], balanceOn:false };
 let form = null;
 let unsubs = [];
@@ -491,40 +493,46 @@ function balHTML(){
   const tot = rows.reduce((a,[,v])=>a+(v||0),0);
   let h = `<div class="hero"><small>Total saldo</small><div class="big" data-ck="bal" data-count="${tot}">${rp(tot)}</div>
     <small>Berkurang otomatis setiap pengeluaran, bertambah saat kamu menambah saldo.</small>
-    <div class="two"><button data-a="openBal" data-mode="add">+ Tambah saldo</button><button data-a="openBal" data-mode="set">✏️ Edit saldo</button></div></div>`;
+    <div class="two"><button data-a="openBal" data-mode="add">+ Tambah</button><button data-a="openBal" data-mode="set">✏️ Edit</button><button data-a="openBal" data-mode="move">⇄ Transfer</button></div></div>`;
   h += `<div class="card"><h2>Saldo per metode</h2>${rows.map(([m,v])=>`<div class="rrow"><div class="h"><div><i class="dot" style="background:${METHODS[m]}"></i> ${m}<div>${v===null?'<span class="mut">Belum diisi</span>':`<b class="${v<0?'neg':''}">${rp(v)}</b>`}</div></div>
     <div><button class="eb" data-a="openBal" data-mode="add" data-m="${m}">+ Tambah</button> <button class="eb" data-a="openBal" data-mode="set" data-m="${m}">✏️ Edit</button></div></div></div>`).join('')}</div>`;
   const lg = state.balanceLog.slice(0,15);
   h += `<div class="card"><h2>Riwayat saldo</h2>${lg.length ? lg.map(x=>{
     const d = new Date(x.t);
-    return `<div class="rrow"><div class="h"><div>${x.kind==='add'?'Tambah saldo':'Edit saldo'} · ${esc(x.m)}<div class="mut">${dShort(ymd(d))} ${pad(d.getHours())}:${pad(d.getMinutes())} · ${x.kind==='add'?'jadi '+rp(x.after):'sebelumnya '+rp(x.before)}</div></div><b>${x.kind==='add'?'+ '+rp(x.amount):rp(x.after)}</b></div></div>`;
+    const mv = x.kind==='move', tm = `${dShort(ymd(d))} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `<div class="rrow"><div class="h"><div>${mv?`Transfer ${esc(x.m)} → ${esc(x.to)}`:`${x.kind==='add'?'Tambah saldo':'Edit saldo'} · ${esc(x.m)}`}<div class="mut">${tm}${mv?'':` · ${x.kind==='add'?'jadi '+rp(x.after):'sebelumnya '+rp(x.before)}`}</div></div><b>${mv?'⇄ '+rp(x.amount):x.kind==='add'?'+ '+rp(x.amount):rp(x.after)}</b></div></div>`;
   }).join('') : '<div class="empty">Belum ada riwayat.</div>'}</div>`;
   return h;
 }
 
 function balPreview(){
-  const f = form, cur = balOf(f.method), amt = parseInt(f.amount||'0',10)||0;
-  const after = f.mode==='add' ? (cur||0)+amt : amt;
-  return `Saldo ${f.method}: ${cur===null?'belum diisi':rp(cur)} → ${f.amount===''?'…':rp(after)}`;
+  const f = form, amt = parseInt(f.amount||'0',10)||0, show = v => v===null?'belum diisi':rp(v);
+  if (f.mode==='move'){ const a = balOf(f.method), c = balOf(f.to);
+    return f.amount==='' ? `${f.method}: ${show(a)} · ${f.to}: ${show(c)}` : `${f.method}: ${show(a)} → ${rp((a||0)-amt)}<br>${f.to}: ${show(c)} → ${rp((c||0)+amt)}`; }
+  const cur = balOf(f.method), after = f.mode==='add' ? (cur||0)+amt : amt;
+  return `Saldo ${f.method}: ${show(cur)} → ${f.amount===''?'…':rp(after)}`;
 }
 
 function balanceSheet(){
-  const f = form;
-  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>${f.mode==='add'?'Tambah saldo':'Edit saldo'}</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
-  <div class="seg" style="margin-top:10px"><button class="${f.mode==='add'?'on':''}" data-a="bMode" data-v="add">Tambah saldo</button><button class="${f.mode==='set'?'on':''}" data-a="bMode" data-v="set">Edit saldo</button></div>
-  <div class="mut">${f.mode==='add'?'Menambah ke saldo yang sudah ada (mis. top up atau gajian).':'Menetapkan saldo menjadi angka yang kamu isi (untuk koreksi bila tidak sesuai).'}</div>
-  <label class="l">Metode</label>
-  <div>${Object.keys(METHODS).map(m=>`<button class="pill ${f.method===m?'on':''}" data-a="bMethod" data-v="${m}"><i class="dot" style="background:${METHODS[m]}"></i>${m}</button>`).join('')}</div>
-  <label class="l">${f.mode==='add'?'Jumlah yang ditambahkan':'Saldo yang benar'}</label>
+  const f = form, mv = f.mode==='move';
+  const pills = (act,sel) => Object.keys(METHODS).map(m=>`<button class="pill ${sel===m?'on':''}" data-a="${act}" data-v="${m}"><i class="dot" style="background:${METHODS[m]}"></i>${m}</button>`).join('');
+  const hint = {add:'Menambah ke saldo yang sudah ada (mis. top up atau gajian).',set:'Menetapkan saldo menjadi angka yang kamu isi (untuk koreksi bila tidak sesuai).',move:'Memindahkan uang antar metode (mis. top up Gopay dari BCA). Bukan pengeluaran.'}[f.mode];
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>${{add:'Tambah saldo',set:'Edit saldo',move:'Transfer saldo'}[f.mode]}</h3><button class="close" data-a="closeSheet" aria-label="Tutup">✕</button></div>
+  <div class="seg" style="margin-top:10px"><button class="${f.mode==='add'?'on':''}" data-a="bMode" data-v="add">Tambah</button><button class="${f.mode==='set'?'on':''}" data-a="bMode" data-v="set">Edit</button><button class="${mv?'on':''}" data-a="bMode" data-v="move">Transfer</button></div>
+  <div class="mut">${hint}</div>
+  <label class="l">${mv?'Dari':'Metode'}</label>
+  <div>${pills('bMethod',f.method)}</div>
+  ${mv?`<label class="l">Ke</label><div>${pills('bTo',f.to)}</div>`:''}
+  <label class="l">${{add:'Jumlah yang ditambahkan',set:'Saldo yang benar',move:'Jumlah yang dipindahkan'}[f.mode]}</label>
   <div class="amt"><span>Rp</span><input id="bAmt" inputmode="numeric" placeholder="0" value="${f.amount}" autocomplete="off"></div>
   <div class="mut" id="bPrev" style="margin-top:6px">${balPreview()}</div>
   ${f.err?`<div class="err">${f.err}</div>`:''}
-  <button class="btn pri" data-a="saveBal">Simpan</button></div>`;
+  <button class="btn pri" data-a="saveBal">${mv?'Transfer':'Simpan'}</button></div>`;
 }
 
 function itemHTML(e){
   return `<div class="it" role="button" tabindex="0" data-a="edit" data-id="${e.id}"><div class="ic" style="background:${col(e.type)}">${icon(e.type)}</div>
-    <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span></div><div class="r"><span class="amt-s">${rp(e.amount)}</span><br><span class="eb">✏️ Edit</span></div></div>`;
+    <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span>${e.note?`<span class="mut note">“${esc(e.note)}”</span>`:''}</div><div class="r"><span class="amt-s">${rp(e.amount)}</span><br><span class="eb">✏️ Edit</span></div></div>`;
 }
 
 function moreHTML(c){
@@ -610,17 +618,23 @@ function recapHTML(){
     ${rows.map(r=>`<div class="rrow"><div class="h"><div>${r.label}<div class="mut">${r.sub}</div></div><b>${rp(r.total)}</b></div><div class="bar"><i style="width:${r.total/mx*100}%;background:var(--pri)"></i></div></div>`).join('')}`:'<div class="empty">Belum ada data.</div>'}</div>`;
 }
 
-function histHTML(){
-  const i = ui.viewIdx;
-  let L = state.expenses.filter(e=>inP(e,i));
+function histList(){
+  const q = ui.q.trim().toLowerCase();
+  let L = q ? state.expenses.slice() : state.expenses.filter(e=>inP(e,ui.viewIdx));   // saat mencari: semua periode
   if (ui.filter) L = L.filter(e=>e.type===ui.filter);
+  if (q) L = L.filter(e => (e.type+' '+e.method+' '+(e.note||'')+' '+e.amount+' '+e.date).toLowerCase().includes(q));
   L.sort((a,b)=>b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0));
   const dates = [...new Set(L.map(e=>e.date))];
-  const fsel = `<select class="sel" data-c="filter"><option value="">Semua tipe</option>${state.types.map(t=>`<option ${ui.filter===t?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
-  return periodSelect() + fsel + (dates.length ? dates.map(d=>{
+  const head = q ? `<div class="mut" style="margin:0 2px 8px">${L.length} hasil di semua periode · ${rp(sum(L))}</div>` : '';
+  return head + (dates.length ? dates.map(d=>{
     const day = L.filter(e=>e.date===d);
     return `<div class="card" style="padding:6px 16px 8px"><div class="dg"><span>${dFull(d)}</span><span>${rp(sum(day))}</span></div>${day.map(itemHTML).join('')}</div>`;
   }).join('') : '<div class="card empty">Tidak ada transaksi.</div>');
+}
+function histHTML(){
+  const fsel = `<select class="sel" data-c="filter"><option value="">Semua tipe</option>${state.types.map(t=>`<option ${ui.filter===t?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
+  const search = `<input type="text" id="qSearch" class="sel" placeholder="🔍 Cari catatan, tipe, metode, nominal…" value="${esc(ui.q)}" autocomplete="off">`;
+  return periodSelect() + search + fsel + `<div id="hList">${histList()}</div>`;
 }
 
 function setHTML(){
@@ -667,6 +681,8 @@ function expenseSheet(){
   <label class="l">Metode</label>
   <div>${Object.keys(METHODS).map(m=>`<button class="pill ${f.method===m?'on':''}" data-a="pickMethod" data-v="${m}"><i class="dot" style="background:${METHODS[m]}"></i>${m}</button>`).join('')}</div>
   ${state.balanceOn && balOf(f.method)!==null ? `<div class="mut">Saldo ${f.method} saat ini: <b class="${balOf(f.method)<0?'neg':''}">${rp(balOf(f.method))}</b></div>` : ''}
+  <label class="l">Catatan (opsional)</label>
+  <input type="text" id="fNote" maxlength="80" placeholder="mis. makan siang bareng tim" value="${esc(f.note||'')}" autocomplete="off">
   ${f.err?`<div class="err">${f.err}</div>`:''}
   <button class="btn pri" data-a="saveExpense">Simpan</button>
   ${f.id?`<button class="btn red" data-a="delExp">Hapus pengeluaran</button>`:''}</div>`;
@@ -720,12 +736,12 @@ const A = {
     if (logoTaps>=7){ logoTaps = 0; rain(); toast('🤑 Hujan uang!'); }
   },
   openAdd:()=>{
-    form = {kind:'exp',id:null,dmode:'today',date:today(),type:localStorage.getItem('lastType')&&state.types.includes(localStorage.getItem('lastType'))?localStorage.getItem('lastType'):state.types[0],amount:'',method:localStorage.getItem('lastMethod')||'BCA',newType:'',err:''};
+    form = {kind:'exp',id:null,dmode:'today',date:today(),type:localStorage.getItem('lastType')&&state.types.includes(localStorage.getItem('lastType'))?localStorage.getItem('lastType'):state.types[0],amount:'',method:localStorage.getItem('lastMethod')||'BCA',note:'',newType:'',err:''};
     showSheet();
   },
   edit:d=>{
     const e = state.expenses.find(x=>x.id===d.id); if(!e) return;
-    form = {kind:'exp',id:e.id,dmode:e.date===today()?'today':'custom',date:e.date,type:e.type,amount:String(e.amount),method:e.method,newType:'',err:''};
+    form = {kind:'exp',id:e.id,dmode:e.date===today()?'today':'custom',date:e.date,type:e.type,amount:String(e.amount),method:e.method,note:e.note||'',newType:'',err:''};
     showSheet();
   },
   closeSheet,
@@ -754,7 +770,7 @@ const A = {
     const amt = parseInt(form.amount,10), date = form.dmode==='today'?today():form.date;
     if(!amt){ form.err='Isi besaran dulu.'; return showSheet(); }
     if(!date){ form.err='Pilih tanggal.'; return showSheet(); }
-    const data = {date,type:form.type,amount:amt,method:form.method};
+    const data = {date,type:form.type,amount:amt,method:form.method,note:(form.note||'').trim().slice(0,80)};
     localStorage.setItem('lastType',form.type); localStorage.setItem('lastMethod',form.method);
     if (form.id) updateDoc(doc(db,'users',state.uid,'expenses',form.id),data).catch(fail);
     else addDoc(expCol(),{...data,createdAt:Date.now()}).catch(fail);
@@ -778,12 +794,27 @@ const A = {
     if (!state.balanceOn && ui.tab==='bal') ui.tab='home';
     updateDoc(userRef(),{balanceOn:state.balanceOn}).catch(fail); render();
   },
-  openBal:d=>{ form={kind:'bal',mode:d.mode==='set'?'set':'add',method:d.m||Object.keys(METHODS)[0],amount:'',err:''}; showSheet(); },
+  openBal:d=>{
+    const ks = Object.keys(METHODS), from = d.m||ks[0];
+    form = {kind:'bal',mode:d.mode==='set'?'set':d.mode==='move'?'move':'add',method:from,to:ks.find(k=>k!==from),amount:'',err:''}; showSheet();
+  },
   bMode:d=>{ form.mode=d.v; form.err=''; showSheet(); },
-  bMethod:d=>{ form.method=d.v; showSheet(); },
+  bMethod:d=>{ if (d.v===form.to) form.to = form.method; form.method=d.v; form.err=''; showSheet(); },
+  bTo:d=>{ if (d.v===form.method) form.method = form.to; form.to=d.v; form.err=''; showSheet(); },
   saveBal:()=>{
     const f = form, m = f.method, amt = parseInt(f.amount,10);
     if (f.amount==='' || isNaN(amt)){ f.err='Isi nominal dulu.'; return showSheet(); }
+    if (f.mode==='move'){
+      if (amt<=0){ f.err='Jumlah harus lebih dari 0.'; return showSheet(); }
+      if (f.method===f.to){ f.err='Pilih dua metode yang berbeda.'; return showSheet(); }
+      if (balOf(f.method)===null){ f.err='Saldo '+f.method+' belum diisi. Isi dulu lewat Edit saldo.'; return showSheet(); }
+      const a = balOf(f.method), c = balOf(f.to)||0, now = Date.now(), to = f.to;
+      const A1 = {base:a-amt,at:now}, B1 = {base:c+amt,at:now};
+      state.balances = {...state.balances,[m]:A1,[to]:B1};
+      state.balanceLog = [{t:now,m,to,kind:'move',amount:amt,before:a,after:a-amt}, ...state.balanceLog].slice(0,100);
+      updateDoc(userRef(),{[`balances.${m}`]:A1,[`balances.${to}`]:B1,balanceLog:state.balanceLog}).catch(fail);
+      closeSheet(); render(); toast('Transfer berhasil ⇄'); return;
+    }
     if (f.mode==='add' && amt<=0){ f.err='Jumlah yang ditambahkan harus lebih dari 0.'; return showSheet(); }
     const cur = balOf(m)||0, base = f.mode==='add' ? cur+amt : amt, now = Date.now();
     state.balances = {...state.balances, [m]:{base,at:now}};
@@ -873,7 +904,9 @@ document.addEventListener('input', e => {
   if (e.target.id==='fAmt'){ const v=e.target.value.replace(/\D/g,''); e.target.value=v; form.amount=v; $('fPrev').textContent = v?rp(v):''; eggAmount(v); }
   else if (e.target.id==='fNew') form.newType = e.target.value;
   else if (e.target.id==='rName') form.name = e.target.value;
-  else if (e.target.id==='bAmt'){ const v=e.target.value.replace(/\D/g,''); e.target.value=v; form.amount=v; $('bPrev').textContent = balPreview(); }
+  else if (e.target.id==='fNote') form.note = e.target.value;
+  else if (e.target.id==='qSearch'){ ui.q = e.target.value; $('hList').innerHTML = histList(); }
+  else if (e.target.id==='bAmt'){ const v=e.target.value.replace(/\D/g,''); e.target.value=v; form.amount=v; $('bPrev').innerHTML = balPreview(); }
 });
 document.addEventListener('change', e => {
   const c = e.target.dataset.c;
@@ -932,7 +965,7 @@ else {
   const onErr = e => { console.error(e); view='error'; ui.err='Tidak bisa membaca data. Cek Firestore rules & koneksi.<br><small>'+esc(e.message||e)+'</small>'; render(); };
   onAuthStateChanged(auth, user => {
     unsubs.forEach(f=>f()); unsubs=[]; loaded={u:false,x:false};
-    if (!user){ view='login'; ui.tab='home'; ui.filter=''; ui.more=false; state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false}; render(); return; }
+    if (!user){ view='login'; ui.tab='home'; ui.filter=''; ui.q=''; ui.more=false; state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false}; render(); return; }
     state.uid = user.uid;
     state.name = Object.keys(ACCOUNTS).find(k=>ACCOUNTS[k].email===user.email) || user.email;
     view='loading'; render();
