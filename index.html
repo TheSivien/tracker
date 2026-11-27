@@ -313,13 +313,13 @@ const sum = a => a.reduce((s,e) => s+e.amount, 0);
 const hash = s => [...s].reduce((h,c) => (h*31 + c.charCodeAt(0)) >>> 0, 7);
 const col = t => t===FALLBACK ? '#94a3b8' : PALETTE[hash(t) % PALETTE.length];
 const KW = [[/kopi|coffee|kafe|cafe/,'☕'],[/boba|teh|minum/,'🧋'],[/bensin|bbm|pertamax|fuel/,'⛽'],[/pulsa|kuota|internet|wifi/,'📱'],[/jajan|snack|cemil/,'🍿'],[/game|gim/,'🎮'],[/skincare|salon|makeup|kecantikan/,'🧴'],[/hadiah|kado|gift/,'🎁'],[/donasi|sedekah|zakat|infaq/,'🤲'],[/kos|kontrakan|sewa|rumah/,'🏠'],[/listrik|token|pln/,'⚡'],[/baju|pakaian|fashion/,'👕'],[/buku|kuliah|sekolah|kursus|belajar/,'📚'],[/kucing|anjing|hewan|\bpet\b/,'🐱'],[/gym|olahraga|fitness/,'🏋️'],[/nonton|film|bioskop/,'🎬'],[/travel|liburan|tiket|hotel/,'✈️'],[/parkir/,'🅿️'],[/laundry|cuci/,'🧺']];
-const icon = t => { if (ICON[t]) return ICON[t]; const l = t.toLowerCase(); for (const [re,e] of KW) if (re.test(l)) return e; return (t.trim()[0]||'?').toUpperCase(); };
+const icon = t => { if (state.icons && state.icons[t]) return state.icons[t]; if (ICON[t]) return ICON[t]; const l = t.toLowerCase(); for (const [re,e] of KW) if (re.test(l)) return e; return (t.trim()[0]||'?').toUpperCase(); };
 const group = (list, fn) => { const m = {}; list.forEach(e => { const k = fn(e); m[k] = (m[k]||0) + e.amount; }); return m; };
 
 /* ---------- state ---------- */
 let view = 'loading';
-let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', q:'', detail:(()=>{ try{ return localStorage.getItem('detail')!=='0'; }catch(e){ return true; } })(), exT:new Set(), exI:new Set(), warnedTier:-1, more:false, anim:false, animNow:false, animUntil:0, loginShown:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
-let state = { name:'', uid:'', periods:[], periodNames:[], types:[], expenses:[], pending:false, balances:{}, balanceLog:[], balanceOn:false, tiers:{} };
+let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', q:'', detail:(()=>{ try{ return localStorage.getItem('detail')!=='0'; }catch(e){ return true; } })(), exT:new Set(), exI:new Set(), exK:new Set(), warnedTier:-1, more:false, anim:false, animNow:false, animUntil:0, loginShown:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
+let state = { name:'', uid:'', periods:[], periodNames:[], types:[], expenses:[], pending:false, balances:{}, balanceLog:[], balanceOn:false, tiers:{}, icons:{} };
 let form = null;
 let unsubs = [];
 let db, auth;
@@ -430,14 +430,16 @@ const CLOSEBTN = '<button class="close" data-a="closeSheet" aria-label="Tutup">�
 const TIERS = { p:{n:'Primer',c:'#14b8a6',e:'🛡️'}, s:{n:'Sekunder',c:'#f59e0b',e:'🧩'}, t:{n:'Tersier',c:'#ec4899',e:'🎈'} };
 const TKEYS = ['p','s','t'];
 const tierOf = type => state.tiers[type] || null;
+const tierOfE = e => e.tier || tierOf(e.type);   // kelompok per transaksi: ikut default tipe kecuali diubah manual
+const firstEmoji = v => { v = (v||'').trim(); if (!v) return ''; try{ return [...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(v)][0].segment; }catch(e){ return [...v][0]; } };
 const tierColor = k => (k && TIERS[k]) ? TIERS[k].c : '#94a3b8';
 const tierName = k => (k && TIERS[k]) ? TIERS[k].n : 'Belum diatur';
 const tierDot = type => { const k = tierOf(type); return k ? `<i class="td" style="background:${TIERS[k].c}"></i>` : ''; };
-const tierGroups = list => { const m = {}; list.forEach(e => { const k = tierOf(e.type) || '-'; m[k] = (m[k]||0) + e.amount; }); return [...TKEYS,'-'].filter(k => m[k]).map(k => [k,m[k]]); };
-const subTypes = (L,k) => Object.entries(group(L.filter(e => (tierOf(e.type)||'-')===k), e => e.type)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t,v]) => `${esc(t)} ${rpS(v)}`).join(' · ');
+const tierGroups = list => { const m = {}; list.forEach(e => { const k = tierOfE(e) || '-'; m[k] = (m[k]||0) + e.amount; }); return [...TKEYS,'-'].filter(k => m[k]).map(k => [k,m[k]]); };
+const subTypes = (L,k) => Object.entries(group(L.filter(e => (tierOfE(e)||'-')===k), e => e.type)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t,v]) => `${esc(t)} ${rpS(v)}`).join(' · ');
 // "bagaimana kalau tanpa ...": hanya mengubah tampilan Beranda & Rekap, data tidak disentuh
-const isExcl = e => ui.exT.has(e.type) || ui.exI.has(e.id);
-const exCount = () => ui.exT.size + ui.exI.size;
+const isExcl = e => ui.exT.has(e.type) || ui.exI.has(e.id) || (ui.exK.size && ui.exK.has(tierOfE(e)));
+const exCount = () => ui.exT.size + ui.exI.size + ui.exK.size;
 const vis = list => exCount() ? list.filter(e => !isExcl(e)) : list;
 
 let sw = null, swOpen = null, swipedAt = 0, drag = null, undoFn = null;
@@ -468,7 +470,7 @@ function ctlHTML(){
 }
 function exBannerHTML(hidden){
   if (!exCount()) return '';
-  const names = [...ui.exT].map(esc); if (ui.exI.size) names.push(ui.exI.size+' transaksi');
+  const names = [...ui.exK].map(k=>TIERS[k].n).concat([...ui.exT].map(esc)); if (ui.exI.size) names.push(ui.exI.size+' transaksi');
   return `<div class="card exb"><div><b>Tanpa ${names.join(', ')}</b><div class="mut">Selisih ${rp(hidden)} · hanya tampilan, data tidak berubah</div></div><button class="eb" data-a="exReset">Reset</button></div>`;
 }
 
@@ -478,7 +480,7 @@ function appreciationHTML(i, L0){
   const g = Object.fromEntries(tierGroups(L0)), assigned = tot - (g['-']||0);
   if (assigned/tot < 0.5) return `<div class="card"><h2>Apresiasi</h2><div class="mut">Atur kelompok tiap tipe (Primer · Sekunder · Tersier) agar ringkasan dan apresiasinya muncul.</div><button class="eb" data-a="tab" data-v="set">Atur sekarang →</button></div>`;
   const Pp = g.p||0, ts = (g.t||0)/assigned, pct = Math.round(ts*100);
-  const tdays = new Set(state.expenses.filter(e => tierOf(e.type)==='t').map(e => e.date));
+  const tdays = new Set(state.expenses.filter(e => tierOfE(e)==='t').map(e => e.date));
   const first = state.expenses.reduce((m,e) => e.date<m ? e.date : m, today());
   let streak = 0; for (let d=today(); d>=first && streak<400; d=addDays(d,-1)){ if (tdays.has(d)) break; streak++; }
   const lines = [];
@@ -499,16 +501,20 @@ function tierSheet(){
   const f = form, cur = tierOf(f.type);
   const row = (k,name,c) => `<button class="tr ${cur===k||(!cur&&!k)?'on':''}" data-a="setTier" data-v="${k}"><i class="td lg" style="background:${c}"></i><span>${name}</span><em>${cur===k||(!cur&&!k)?'✓':''}</em></button>`;
   return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>${icon(f.type)} ${esc(f.type)}</h3>${CLOSEBTN}</div>
+  <label class="l">Logo</label>
+  <div class="row"><input type="text" id="tEmo" maxlength="12" placeholder="Ketik / tempel emoji" value="${esc(state.icons[f.type]||'')}" autocomplete="off"><button class="btn" data-a="setIcon">Simpan</button></div>
+  <div class="mut">Kosongkan untuk logo otomatis.</div>
+  <label class="l">Kelompok bawaan</label>
   <div class="tl">${TKEYS.map(k => row(k,TIERS[k].n,TIERS[k].c)).join('')}${row('','Belum diatur','#94a3b8')}</div></div>`;
 }
 function exclSheet(){
   const L0 = state.expenses.filter(e => inP(e,ui.viewIdx)), tot = sum(L0), keep = sum(vis(L0));
-  const tiersAvail = TKEYS.filter(k => state.types.some(t => tierOf(t)===k));
+  const tiersAvail = TKEYS.filter(k => state.types.some(t => tierOf(t)===k) || state.expenses.some(e => e.tier===k));
   const top = L0.slice().sort((a,b) => b.amount-a.amount).slice(0,8);
   return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>Kecualikan</h3>${CLOSEBTN}</div>
   <div class="mut">Lihat kondisi keuanganmu tanpa pengeluaran tertentu. Hanya mengubah tampilan Beranda &amp; Rekap.</div>
   <div class="exsum"><div><small>Periode ini</small><b>${rp(tot)}</b></div><div><small>Tanpa pengecualian</small><b>${rp(keep)}</b></div><div><small>Selisih</small><b>−${rp(tot-keep)}</b></div></div>
-  ${tiersAvail.length ? `<label class="l">Per kelompok</label><div>${tiersAvail.map(k => { const ts = state.types.filter(t => tierOf(t)===k); return `<button class="pill ${ts.every(t => ui.exT.has(t))?'on':''}" data-a="exToggleTier" data-v="${k}"><i class="td" style="background:${TIERS[k].c}"></i>${TIERS[k].n}</button>`; }).join('')}</div>` : ''}
+  ${tiersAvail.length ? `<label class="l">Per kelompok</label><div>${tiersAvail.map(k => { return `<button class="pill ${ui.exK.has(k)?'on':''}" data-a="exToggleTier" data-v="${k}"><i class="td" style="background:${TIERS[k].c}"></i>${TIERS[k].n}</button>`; }).join('')}</div>` : ''}
   <label class="l">Per tipe</label><div>${state.types.map(t => `<button class="pill ${ui.exT.has(t)?'on':''}" data-a="exToggleType" data-v="${esc(t)}">${tierDot(t)}${icon(t)} ${esc(t)}</button>`).join('')}</div>
   <label class="l">Transaksi tertentu (8 terbesar di periode ini)</label>
   <div>${top.length ? top.map(e => `<button class="xr" data-a="exToggleId" data-id="${e.id}"><span class="ck ${isExcl(e)?'on':''}">✓</span><span class="xm"><b>${esc(e.type)}</b><span class="mut">${e.note?esc(e.note)+' · ':''}${dShort(e.date)}</span></span><span class="xa">${rp(e.amount)}</span></button>`).join('') : '<div class="mut">Belum ada transaksi.</div>'}</div>
@@ -682,7 +688,7 @@ function balanceSheet(){
 }
 
 function itemHTML(e){
-  const k = tierOf(e.type);
+  const k = tierOfE(e);
   return `<div class="swr"><button class="swd" data-a="swipeDel" data-id="${e.id}" tabindex="-1" aria-hidden="true">Hapus</button><div class="it" role="button" tabindex="0" data-a="edit" data-id="${e.id}"><div class="ic" style="background:${col(e.type)}">${icon(e.type)}${k?`<i class="tb" style="background:${TIERS[k].c}"></i>`:''}</div>
     <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span>${e.note?`<span class="mut note">“${esc(e.note)}”</span>`:''}</div><div class="r"><span class="amt-s">${rp(e.amount)}</span><br><span class="eb">✏️ Edit</span></div></div></div>`;
 }
@@ -824,8 +830,10 @@ function expenseSheet(){
   ${f.dmode==='custom'?`<input type="date" id="fDate" value="${f.date}" max="${today()}">`:''}
   <label class="l">Tipe</label>
   <div>${state.types.map(t=>`<button class="pill ${f.type===t?'on':''}" data-a="pickType" data-v="${esc(t)}">${tierDot(t)}${icon(t)} ${esc(t)}</button>`).join('')}</div>
-  <div class="row"><input type="text" id="fNew" placeholder="+ Tipe baru (jadi permanen)" value="${esc(f.newType)}"><button class="btn" data-a="addType">Tambah</button></div>
+  <div class="row"><input type="text" id="fNew" placeholder="+ Tipe baru" value="${esc(f.newType)}"><input type="text" id="fNewE" maxlength="12" placeholder="😀" style="max-width:64px;text-align:center" aria-label="Logo emoji" value="${esc(f.newEmo||'')}" autocomplete="off"><button class="btn" data-a="addType">Tambah</button></div>
   <div class="nt"><span class="mut">Kelompok tipe baru:</span> ${TKEYS.map(k=>`<button class="pill sm ${f.newTier===k?'on':''}" data-a="newTier" data-v="${k}"><i class="td" style="background:${TIERS[k].c}"></i>${TIERS[k].n}</button>`).join('')}</div>
+  <label class="l">Kelompok transaksi ini</label>
+  <div>${(()=>{ const df = tierOf(f.type); return `<button class="pill ${!f.tier?'on':''}" data-a="pickTier" data-v="">${df?`<i class="td" style="background:${TIERS[df].c}"></i>`:''}Ikuti tipe</button>` + TKEYS.filter(k=>k!==df).map(k=>`<button class="pill ${f.tier===k?'on':''}" data-a="pickTier" data-v="${k}"><i class="td" style="background:${TIERS[k].c}"></i>${TIERS[k].n}</button>`).join(''); })()}</div>
   <label class="l">Besaran</label>
   <div class="amt"><span>Rp</span><input id="fAmt" inputmode="numeric" placeholder="0" value="${f.amount}" autocomplete="off"></div>
   <div class="mut" id="fPrev" style="margin-top:4px">${f.amount?rp(f.amount):''}</div>
@@ -887,42 +895,43 @@ const A = {
     if (logoTaps>=7){ logoTaps = 0; rain(); toast('🤑 Hujan uang!'); }
   },
   openAdd:()=>{
-    form = {kind:'exp',id:null,dmode:'today',date:today(),type:localStorage.getItem('lastType')&&state.types.includes(localStorage.getItem('lastType'))?localStorage.getItem('lastType'):state.types[0],amount:'',method:localStorage.getItem('lastMethod')||'BCA',note:'',newType:'',newTier:'',err:''};
+    form = {kind:'exp',id:null,dmode:'today',date:today(),type:localStorage.getItem('lastType')&&state.types.includes(localStorage.getItem('lastType'))?localStorage.getItem('lastType'):state.types[0],amount:'',method:localStorage.getItem('lastMethod')||'BCA',note:'',newType:'',newTier:'',newEmo:'',tier:'',err:''};
     showSheet();
   },
   edit:d=>{
     const e = state.expenses.find(x=>x.id===d.id); if(!e) return;
-    form = {kind:'exp',id:e.id,dmode:e.date===today()?'today':'custom',date:e.date,type:e.type,amount:String(e.amount),method:e.method,note:e.note||'',newType:'',newTier:'',err:''};
+    form = {kind:'exp',id:e.id,dmode:e.date===today()?'today':'custom',date:e.date,type:e.type,amount:String(e.amount),method:e.method,note:e.note||'',newType:'',newTier:'',newEmo:'',tier:e.tier||'',err:''};
     showSheet();
   },
   closeSheet,
   dmode:d=>{ form.dmode=d.v; if(d.v==='custom'&&!form.date) form.date=today(); showSheet(); },
-  pickType:d=>{ form.type=d.v; showSheet(); },
+  pickType:d=>{ form.type=d.v; form.tier=''; showSheet(); },
   pickMethod:d=>{ form.method=d.v; showSheet(); },
   addType:()=>{
     const v = (form.newType||'').trim(); if(!v) return;
     const ex = state.types.find(t=>t.toLowerCase()===v.toLowerCase());
-    if (ex) form.type = ex; else { addType(v,form.newTier); form.type = v; }
-    form.newType=''; form.newTier=''; showSheet();
+    if (ex) form.type = ex; else { addType(v,form.newTier,firstEmoji(form.newEmo)); form.type = v; form.tier=''; }
+    form.newType=''; form.newTier=''; form.newEmo=''; showSheet();
   },
   addTypeS:()=>{ const v=$('sNew').value.trim(); if(v){ const ex=state.types.find(t=>t.toLowerCase()===v.toLowerCase()); if(!ex){ addType(v); render(); A.tierSheet({v}); } else render(); } },
   delType:async d=>{
     if(!confirm(`Hapus tipe "${d.v}"? Pengeluaran dengan tipe ini dipindah ke "${FALLBACK}".`)) return;
     const aff = state.expenses.filter(e=>e.type===d.v);
     state.types = state.types.filter(t=>t!==d.v); if(!state.types.includes(FALLBACK)) state.types.push(FALLBACK);
-    const tr = {...state.tiers}; delete tr[d.v]; state.tiers = tr; ui.exT.delete(d.v);
+    const tr = {...state.tiers}; delete tr[d.v]; state.tiers = tr; ui.exT.delete(d.v); const ic = {...state.icons}; delete ic[d.v]; state.icons = ic;
     aff.forEach(e=>e.type=FALLBACK);
     render();
     try{
       for (let i=0;i<aff.length;i+=400){ const b=writeBatch(db); aff.slice(i,i+400).forEach(e=>b.update(doc(db,'users',state.uid,'expenses',e.id),{type:FALLBACK})); b.commit().catch(fail); }
-      updateDoc(userRef(),{types:state.types,tiers:state.tiers}).catch(fail);
+      updateDoc(userRef(),{types:state.types,tiers:state.tiers,icons:state.icons}).catch(fail);
     }catch(e){ fail(e); }
   },
   saveExpense:(d,el)=>{
     const amt = parseInt(form.amount,10), date = form.dmode==='today'?today():form.date;
     if(!amt){ form.err='Isi besaran dulu.'; return showSheet(); }
     if(!date){ form.err='Pilih tanggal.'; return showSheet(); }
-    const data = {date,type:form.type,amount:amt,method:form.method,note:(form.note||'').trim().slice(0,80)};
+    const tier = form.tier && form.tier!==tierOf(form.type) ? form.tier : '';
+    const data = {date,type:form.type,tier,amount:amt,method:form.method,note:(form.note||'').trim().slice(0,80)};
     localStorage.setItem('lastType',form.type); localStorage.setItem('lastMethod',form.method);
     if (form.id) updateDoc(doc(db,'users',state.uid,'expenses',form.id),data).catch(fail);
     else addDoc(expCol(),{...data,createdAt:Date.now()}).catch(fail);
@@ -930,7 +939,7 @@ const A = {
     const isNew = !form.id, method = form.method, rc = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
     const cx = rc ? rc.left+rc.width/2 : innerWidth/2, cy = rc ? rc.top : innerHeight*0.6;
     const projected = isNew && state.balanceOn && balOf(method)!==null ? balOf(method) - amt : null;
-    const tk = tierOf(form.type); let warn = null;
+    const tk = tier || tierOf(form.type); let warn = null;
     if (isNew && tk==='t'){   // tersier mulai dominan? ingatkan sekali saja per periode, tanpa menghakimi
       const L0 = state.expenses.filter(e=>inP(e,ui.viewIdx)), g = Object.fromEntries(tierGroups(L0));
       const asg = sum(L0) - (g['-']||0) + amt, share = ((g.t||0)+amt)/asg;
@@ -988,14 +997,22 @@ const A = {
   tierSheet:d=>{ form = {kind:'tier',type:d.v}; showSheet(); },
   setTier:d=>{
     const t = {...state.tiers}, ty = form.type; if (d.v) t[ty] = d.v; else delete t[ty];
-    state.tiers = t; updateDoc(userRef(),{tiers:t}).catch(fail); closeSheet(); render();
+    const up = {tiers:t}, inp = $('tEmo');
+    if (inp){ const v = firstEmoji(inp.value), ic = {...state.icons}; if (v) ic[ty] = v; else delete ic[ty]; state.icons = ic; up.icons = ic; }   // emoji yang sudah diketik ikut tersimpan
+    state.tiers = t; updateDoc(userRef(),up).catch(fail); closeSheet(); render();
   },
+  setIcon:()=>{
+    const v = firstEmoji($('tEmo').value), ty = form.type, ic = {...state.icons};
+    if (v) ic[ty] = v; else delete ic[ty];
+    state.icons = ic; updateDoc(userRef(),{icons:ic}).catch(fail); closeSheet(); render();
+  },
+  pickTier:d=>{ form.tier = form.tier===d.v ? '' : d.v; showSheet(); },
   newTier:d=>{ form.newTier = form.newTier===d.v ? '' : d.v; showSheet(); },
   openExcl:()=>{ form = {kind:'excl'}; showSheet(); },
   exToggleType:d=>{ ui.exT.has(d.v) ? ui.exT.delete(d.v) : ui.exT.add(d.v); exRefresh(); },
-  exToggleTier:d=>{ const ts = state.types.filter(t=>tierOf(t)===d.v), all = ts.every(t=>ui.exT.has(t)); ts.forEach(t => all ? ui.exT.delete(t) : ui.exT.add(t)); exRefresh(); },
+  exToggleTier:d=>{ ui.exK.has(d.v) ? ui.exK.delete(d.v) : ui.exK.add(d.v); exRefresh(); },
   exToggleId:d=>{ ui.exI.has(d.id) ? ui.exI.delete(d.id) : ui.exI.add(d.id); exRefresh(); },
-  exReset:()=>{ ui.exT.clear(); ui.exI.clear(); if (form && form.kind==='excl') exRefresh(); else render(); },
+  exReset:()=>{ ui.exK.clear(); ui.exT.clear(); ui.exI.clear(); if (form && form.kind==='excl') exRefresh(); else render(); },
   swipeDel:d=>{
     const e = state.expenses.find(x=>x.id===d.id); if (!e) return;
     const {id,...data} = e; swOpen = null;
@@ -1071,10 +1088,11 @@ function savePeriods(){
   return updateDoc(userRef(),{periods:state.periods,periodNames:n}).catch(fail);
 }
 function exRefresh(){ showSheet(); render(); }
-function addType(v,tier){
+function addType(v,tier,emo){
   const t = state.types.slice(); const i = t.indexOf(FALLBACK);
   t.splice(i<0?t.length:i,0,v); state.types = t;
   const up = {types:t}; if (tier){ state.tiers = {...state.tiers,[v]:tier}; up.tiers = state.tiers; }
+  if (emo){ state.icons = {...state.icons,[v]:emo}; up.icons = state.icons; }
   updateDoc(userRef(),up).catch(fail);
 }
 
@@ -1089,6 +1107,7 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   if (e.target.id==='fAmt'){ const v=e.target.value.replace(/\D/g,''); e.target.value=v; form.amount=v; $('fPrev').textContent = v?rp(v):''; eggAmount(v); }
   else if (e.target.id==='fNew') form.newType = e.target.value;
+  else if (e.target.id==='fNewE') form.newEmo = e.target.value;
   else if (e.target.id==='rName') form.name = e.target.value;
   else if (e.target.id==='fNote') form.note = e.target.value;
   else if (e.target.id==='qSearch'){ ui.q = e.target.value; $('hList').innerHTML = histList(); }
@@ -1196,7 +1215,7 @@ else {
   const onErr = e => { console.error(e); view='error'; ui.err='Tidak bisa membaca data. Cek Firestore rules & koneksi.<br><small>'+esc(e.message||e)+'</small>'; render(); };
   onAuthStateChanged(auth, user => {
     unsubs.forEach(f=>f()); unsubs=[]; loaded={u:false,x:false};
-    if (!user){ view='login'; ui.tab='home'; ui.filter=''; ui.q=''; ui.more=false; ui.exT.clear(); ui.exI.clear(); state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false,tiers:{}}; render(); return; }
+    if (!user){ view='login'; ui.tab='home'; ui.filter=''; ui.q=''; ui.more=false; ui.exT.clear(); ui.exI.clear(); state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false,tiers:{},icons:{}}; ui.exK.clear(); render(); return; }
     state.uid = user.uid;
     state.name = Object.keys(ACCOUNTS).find(k=>ACCOUNTS[k].email===user.email) || user.email;
     view='loading'; render();
@@ -1204,7 +1223,7 @@ else {
       if (!snap.exists()){ setDoc(userRef(),{periods:[today()],periodNames:[''],types:DEFAULT_TYPES}).catch(onErr); return; }
       const d = snap.data();
       state.periods = [...d.periods].sort();
-      state.balances = d.balances || {}; state.balanceLog = d.balanceLog || []; state.balanceOn = !!d.balanceOn; state.tiers = d.tiers || {};
+      state.balances = d.balances || {}; state.balanceLog = d.balanceLog || []; state.balanceOn = !!d.balanceOn; state.tiers = d.tiers || {}; state.icons = d.icons || {};
       state.periodNames = state.periods.map((_,k)=>(Array.isArray(d.periodNames)&&d.periodNames[k])||'');
       state.types = d.types && d.types.length ? d.types : DEFAULT_TYPES;
       loaded.u = true; ready();
