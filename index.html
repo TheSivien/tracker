@@ -201,6 +201,64 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .note{display:block;font-style:italic}
 .hero .two{gap:6px}.hero .two button{font-size:14px;padding:11px 4px}
+
+/* ===== tier, pengecualian, dan detail ala iOS ===== */
+body{font-variant-numeric:tabular-nums}
+input{caret-color:var(--pri)}input[type=date]{accent-color:var(--pri)}
+.td{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px;flex:none}
+.td.lg{width:14px;height:14px;margin:0}
+.pill .td{margin-right:0}
+.pill.sm{padding:5px 11px;font-size:13px;margin-bottom:6px}
+.nt{margin:2px 0 4px}.nt .mut{margin-right:4px}
+.pill button.tp{color:inherit;font-size:inherit;line-height:inherit;padding:0;font-weight:inherit}
+.ctl{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.ctl .seg{flex:1;margin:0}
+.eb.flt{margin:0;padding:9px 12px;font-size:13px;flex:none;white-space:nowrap}
+.eb.flt.act{background:var(--pri);color:#fff;border-color:transparent}
+.exb{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sub{margin:-6px 0 8px;font-size:12px}
+.mix{display:flex;height:10px;border-radius:6px;overflow:hidden;gap:2px;margin-bottom:6px}
+.mix i{display:block;min-width:4px}
+.lgd{display:flex;flex-wrap:wrap;gap:4px 12px;margin:6px 0 10px}
+.lgd span{font-size:12px;color:var(--mut);display:inline-flex;align-items:center;gap:5px}
+.stk{display:flex;height:100%;border-radius:4px;overflow:hidden}
+.stk i{height:100%;border-radius:0}
+.tl{margin-top:6px}
+.tr{display:flex;align-items:center;gap:12px;width:100%;padding:15px 4px;border-top:.5px solid var(--bd);text-align:left;font-size:16px}
+.tr:first-child{border-top:0}
+.tr span{flex:1}.tr em{font-style:normal;color:var(--pri);font-weight:800}
+.tr.on span{font-weight:700}
+.exsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
+.exsum div{background:var(--bg);border-radius:12px;padding:8px 10px}
+.exsum small{display:block;color:var(--mut);font-size:11px}.exsum b{font-size:13px}
+.xr{display:flex;align-items:center;gap:10px;width:100%;padding:10px 2px;border-top:.5px solid var(--bd);text-align:left}
+.xm{flex:1;min-width:0}.xm b{display:block}.xa{font-weight:700;white-space:nowrap}
+.ck{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--bd);display:grid;place-items:center;font-size:13px;color:transparent;flex:none;transition:background-color .2s,border-color .2s,color .2s}
+.ck.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.ic{position:relative}
+.tb{position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;border:2px solid var(--card)}
+/* geser untuk hapus */
+.swr{position:relative;overflow:hidden}
+.swr .it{background:var(--card);position:relative;touch-action:pan-y}
+.swd{position:absolute;right:0;top:0;bottom:0;width:84px;background:var(--red);color:#fff;font-weight:700;border-radius:0}
+.grab{position:relative}.grab::before{content:"";position:absolute;inset:-14px -70px}
+.grab,.shh{touch-action:none}
+/* segmented control: pil meluncur */
+.seg{position:relative}
+.seg>button{position:relative;z-index:1}
+.seg button.on{background:transparent;box-shadow:none}
+.seg-thumb{position:absolute;top:4px;bottom:4px;left:4px;z-index:0;width:calc((100% - 8px - (var(--n,2) - 1)*4px)/var(--n,2));border-radius:9px;background:var(--card);box-shadow:var(--sh);transform:translateX(calc(var(--i,0)*(100% + 4px)));transition:transform .45s cubic-bezier(.3,1.35,.5,1)}
+/* tombol melenting seperti iOS saat dilepas */
+.fab,.btn,.pill,.eb,.close,.seg button,.nav button,.who button,.logo,.hero .nb,.hero .two button{transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
+.fab:active,.btn:active,.pill:active,.eb:active,.close:active,.seg button:active,.nav button:active,.who button:active,.logo:active,.hero .nb:active,.hero .two button:active{transition-duration:.1s}
+.sw{transition:background-color .25s}.sw i{transition:left .35s cubic-bezier(.3,1.4,.5,1)}
+.nav{background:color-mix(in srgb,var(--card) 78%,transparent);-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);border-top:.5px solid var(--bd)}
+.rrow,.it,.ins{border-top-width:.5px}
+#toast.act{pointer-events:auto}
+#toast button{margin-left:10px;font-weight:800;color:color-mix(in srgb,var(--pri2) 65%,#fff)}
+.top h1{cursor:pointer}
+#app.anim .stk{animation:growx .7s cubic-bezier(.2,.8,.2,1) backwards .25s}
+#app.anim .stk i{animation:none}
 </style>
 </head>
 <body>
@@ -260,8 +318,8 @@ const group = (list, fn) => { const m = {}; list.forEach(e => { const k = fn(e);
 
 /* ---------- state ---------- */
 let view = 'loading';
-let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', q:'', more:false, anim:false, animNow:false, animUntil:0, loginShown:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
-let state = { name:'', uid:'', periods:[], periodNames:[], types:[], expenses:[], pending:false, balances:{}, balanceLog:[], balanceOn:false };
+let ui = { tab:'home', viewIdx:0, recap:'day', filter:'', q:'', detail:(()=>{ try{ return localStorage.getItem('detail')!=='0'; }catch(e){ return true; } })(), exT:new Set(), exI:new Set(), warnedTier:-1, more:false, anim:false, animNow:false, animUntil:0, loginShown:false, loginUser: localStorage.getItem('lastUser')||'', err:'' };
+let state = { name:'', uid:'', periods:[], periodNames:[], types:[], expenses:[], pending:false, balances:{}, balanceLog:[], balanceOn:false, tiers:{} };
 let form = null;
 let unsubs = [];
 let db, auth;
@@ -324,7 +382,7 @@ function afterRender(){
 }
 
 let toastT = 0;
-function toast(msg){ const t = $('toast'); if (!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2300); }
+function toast(msg){ const t = $('toast'); if (!t) return; t.textContent = msg; t.classList.remove('act'); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2300); }
 
 function burst(x,y,emojis,n=8){
   if (REDUCE) return; const fx = $('fx'); if (!fx || fx.childElementCount>70) return;
@@ -367,6 +425,96 @@ function eggAmount(v){
   else if (v==='777777'){ form.egg = v; toast('🎰 JACKPOT!'); burst(x,y,['🎰','🪙','💰','7️⃣'],12); }
 }
 
+/* ---------- tier (primer/sekunder/tersier), pengecualian, gestur ---------- */
+const CLOSEBTN = '<button class="close" data-a="closeSheet" aria-label="Tutup">✕</button>';
+const TIERS = { p:{n:'Primer',c:'#14b8a6',e:'🛡️'}, s:{n:'Sekunder',c:'#f59e0b',e:'🧩'}, t:{n:'Tersier',c:'#ec4899',e:'🎈'} };
+const TKEYS = ['p','s','t'];
+const tierOf = type => state.tiers[type] || null;
+const tierColor = k => (k && TIERS[k]) ? TIERS[k].c : '#94a3b8';
+const tierName = k => (k && TIERS[k]) ? TIERS[k].n : 'Belum diatur';
+const tierDot = type => { const k = tierOf(type); return k ? `<i class="td" style="background:${TIERS[k].c}"></i>` : ''; };
+const tierGroups = list => { const m = {}; list.forEach(e => { const k = tierOf(e.type) || '-'; m[k] = (m[k]||0) + e.amount; }); return [...TKEYS,'-'].filter(k => m[k]).map(k => [k,m[k]]); };
+const subTypes = (L,k) => Object.entries(group(L.filter(e => (tierOf(e.type)||'-')===k), e => e.type)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t,v]) => `${esc(t)} ${rpS(v)}`).join(' · ');
+// "bagaimana kalau tanpa ...": hanya mengubah tampilan Beranda & Rekap, data tidak disentuh
+const isExcl = e => ui.exT.has(e.type) || ui.exI.has(e.id);
+const exCount = () => ui.exT.size + ui.exI.size;
+const vis = list => exCount() ? list.filter(e => !isExcl(e)) : list;
+
+let sw = null, swOpen = null, swipedAt = 0, drag = null, undoFn = null;
+const segPrev = {};
+function initSegs(root){   // segmented control iOS: pil putih meluncur dengan efek pegas
+  if (!root) return;
+  root.querySelectorAll('.seg').forEach(sg => {
+    const bs = [...sg.children].filter(b => b.tagName==='BUTTON'); if (bs.length<2) return;
+    const idx = Math.max(0, bs.findIndex(b => b.classList.contains('on'))), key = bs[0].dataset.a || 'seg';
+    const th = document.createElement('i'); th.className = 'seg-thumb'; sg.prepend(th);
+    sg.style.setProperty('--n', bs.length);
+    const prev = segPrev[key];
+    if (prev!==undefined && prev!==idx && !REDUCE){ sg.style.setProperty('--i', prev); void th.offsetWidth; }
+    sg.style.setProperty('--i', idx); segPrev[key] = idx;
+  });
+}
+function toastAct(msg,label,fn){
+  const t = $('toast'); if (!t) return;
+  t.textContent = msg + ' '; const b = document.createElement('button'); b.textContent = label; b.dataset.undo = '1'; t.appendChild(b);
+  undoFn = fn; t.classList.add('show','act'); clearTimeout(toastT);
+  toastT = setTimeout(() => { t.classList.remove('show','act'); undoFn = null; }, 5000);
+}
+function closeSwipe(){ if (swOpen){ swOpen.style.transition = 'transform .35s cubic-bezier(.3,1.3,.5,1)'; swOpen.style.transform = ''; swOpen = null; } }
+
+function ctlHTML(){
+  const n = exCount();
+  return `<div class="ctl"><div class="seg"><button class="${ui.detail?'':'on'}" data-a="mode" data-v="brief">Ringkas</button><button class="${ui.detail?'on':''}" data-a="mode" data-v="detail">Detail</button></div><button class="eb flt ${n?'act':''}" data-a="openExcl">⊖ Kecualikan${n?' · '+n:''}</button></div>`;
+}
+function exBannerHTML(hidden){
+  if (!exCount()) return '';
+  const names = [...ui.exT].map(esc); if (ui.exI.size) names.push(ui.exI.size+' transaksi');
+  return `<div class="card exb"><div><b>Tanpa ${names.join(', ')}</b><div class="mut">Selisih ${rp(hidden)} · hanya tampilan, data tidak berubah</div></div><button class="eb" data-a="exReset">Reset</button></div>`;
+}
+
+// apresiasi: tersier yang terkendali dirayakan, primer tidak pernah "dihukum"
+function appreciationHTML(i, L0){
+  const tot = sum(L0); if (!tot) return '';
+  const g = Object.fromEntries(tierGroups(L0)), assigned = tot - (g['-']||0);
+  if (assigned/tot < 0.5) return `<div class="card"><h2>Apresiasi</h2><div class="mut">Atur kelompok tiap tipe (Primer · Sekunder · Tersier) agar ringkasan dan apresiasinya muncul.</div><button class="eb" data-a="tab" data-v="set">Atur sekarang →</button></div>`;
+  const Pp = g.p||0, ts = (g.t||0)/assigned, pct = Math.round(ts*100);
+  const tdays = new Set(state.expenses.filter(e => tierOf(e.type)==='t').map(e => e.date));
+  const first = state.expenses.reduce((m,e) => e.date<m ? e.date : m, today());
+  let streak = 0; for (let d=today(); d>=first && streak<400; d=addDays(d,-1)){ if (tdays.has(d)) break; streak++; }
+  const lines = [];
+  if (streak>=3) lines.push([streak>=30?'👑':streak>=14?'🏆':streak>=7?'🔥':'🌱', `<b>${streak} hari</b> berturut-turut tanpa pengeluaran tersier`]);
+  lines.push(ts===0 ? ['✨','Belum ada pengeluaran tersier di periode ini'] : ts<=.15 ? ['👏',`Tersier cuma <b>${pct}%</b> — disiplin banget`] : ts<=.3 ? ['👌',`Tersier <b>${pct}%</b> — masih seimbang`] : ['🎈',`Tersier <b>${pct}%</b> periode ini — tinggal atur ritmenya`]);
+  if (i>0){
+    const Lp = state.expenses.filter(e => inP(e,i-1)), gp = Object.fromEntries(tierGroups(Lp)), ap = sum(Lp) - (gp['-']||0);
+    if (ap>0){ const d = Math.round((ts - (gp.t||0)/ap)*100);
+      if (d<=-3) lines.push(['🎉',`Tersier turun <b>${-d} poin</b> dibanding ${esc(pname(i-1))}`]);
+      else if (d>=3) lines.push(['📈',`Tersier naik <b>${d} poin</b> dibanding ${esc(pname(i-1))}`]); }
+  }
+  if (Pp/assigned>=.5) lines.push(['🛡️',`Primer <b>${Math.round(Pp/assigned*100)}%</b> dari total — fondasi kokoh`]);
+  const mix = ui.detail ? `<div class="mix">${tierGroups(L0).map(([k,v]) => `<i style="flex:${v};background:${tierColor(k)}"></i>`).join('')}</div><div class="lgd">${tierGroups(L0).map(([k,v]) => `<span><i class="dot" style="background:${tierColor(k)}"></i>${tierName(k)} ${Math.round(v/tot*100)}%</span>`).join('')}</div>` : '';
+  return `<div class="card"><h2>Apresiasi</h2>${mix}${lines.slice(0,3).map(([e,t]) => `<div class="ins"><em>${e}</em><div>${t}</div></div>`).join('')}</div>`;
+}
+
+function tierSheet(){
+  const f = form, cur = tierOf(f.type);
+  const row = (k,name,c) => `<button class="tr ${cur===k||(!cur&&!k)?'on':''}" data-a="setTier" data-v="${k}"><i class="td lg" style="background:${c}"></i><span>${name}</span><em>${cur===k||(!cur&&!k)?'✓':''}</em></button>`;
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>${icon(f.type)} ${esc(f.type)}</h3>${CLOSEBTN}</div>
+  <div class="tl">${TKEYS.map(k => row(k,TIERS[k].n,TIERS[k].c)).join('')}${row('','Belum diatur','#94a3b8')}</div></div>`;
+}
+function exclSheet(){
+  const L0 = state.expenses.filter(e => inP(e,ui.viewIdx)), tot = sum(L0), keep = sum(vis(L0));
+  const tiersAvail = TKEYS.filter(k => state.types.some(t => tierOf(t)===k));
+  const top = L0.slice().sort((a,b) => b.amount-a.amount).slice(0,8);
+  return `<div class="ov" data-a="closeSheet"></div><div class="sh"><div class="grab"></div><div class="shh"><h3>Kecualikan</h3>${CLOSEBTN}</div>
+  <div class="mut">Lihat kondisi keuanganmu tanpa pengeluaran tertentu. Hanya mengubah tampilan Beranda &amp; Rekap.</div>
+  <div class="exsum"><div><small>Periode ini</small><b>${rp(tot)}</b></div><div><small>Tanpa pengecualian</small><b>${rp(keep)}</b></div><div><small>Selisih</small><b>−${rp(tot-keep)}</b></div></div>
+  ${tiersAvail.length ? `<label class="l">Per kelompok</label><div>${tiersAvail.map(k => { const ts = state.types.filter(t => tierOf(t)===k); return `<button class="pill ${ts.every(t => ui.exT.has(t))?'on':''}" data-a="exToggleTier" data-v="${k}"><i class="td" style="background:${TIERS[k].c}"></i>${TIERS[k].n}</button>`; }).join('')}</div>` : ''}
+  <label class="l">Per tipe</label><div>${state.types.map(t => `<button class="pill ${ui.exT.has(t)?'on':''}" data-a="exToggleType" data-v="${esc(t)}">${tierDot(t)}${icon(t)} ${esc(t)}</button>`).join('')}</div>
+  <label class="l">Transaksi tertentu (8 terbesar di periode ini)</label>
+  <div>${top.length ? top.map(e => `<button class="xr" data-a="exToggleId" data-id="${e.id}"><span class="ck ${isExcl(e)?'on':''}">✓</span><span class="xm"><b>${esc(e.type)}</b><span class="mut">${e.note?esc(e.note)+' · ':''}${dShort(e.date)}</span></span><span class="xa">${rp(e.amount)}</span></button>`).join('') : '<div class="mut">Belum ada transaksi.</div>'}</div>
+  <button class="btn pri" data-a="closeSheet">Selesai</button>${exCount() ? '<button class="btn" data-a="exReset">Reset semua</button>' : ''}</div>`;
+}
+
 /* ---------- render ---------- */
 function render(){
   if (view==='config') return app.innerHTML = configHTML();
@@ -382,11 +530,11 @@ function render(){
   const animNow = ui.anim; ui.anim = false; ui.animNow = animNow; app.className = animNow ? 'anim' : '';
   clearTimeout(clsT); if (animNow) clsT = setTimeout(() => { if (!ui.anim) app.className = ''; }, 1400);
   app.innerHTML = `
-    <div class="top"><div class="who2"><button class="logo" data-a="logo" aria-label="Logo">${LOGO}</button><h1>${greet()}, ${esc(state.name)} 👋</h1></div><div class="sync ${state.pending?'p':''}"><i></i>${state.pending?'Menyimpan…':'Tersinkron'}</div></div>
+    <div class="top"><div class="who2"><button class="logo" data-a="logo" aria-label="Logo">${LOGO}</button><h1 data-a="top">${greet()}, ${esc(state.name)} 👋</h1></div><div class="sync ${state.pending?'p':''}"><i></i>${state.pending?'Menyimpan…':'Tersinkron'}</div></div>
     ${body}
     <button class="fab" data-a="openAdd" aria-label="Tambah">+</button>
     <div class="nav"><div>${tabs.map(([k,e,l])=>`<button class="${ui.tab===k?'on':''}" data-a="tab" data-v="${k}"><em>${e}</em>${l}</button>`).join('')}</div></div>`;
-  afterRender();
+  afterRender(); initSegs(app);
 }
 
 function configHTML(){
@@ -409,11 +557,11 @@ function periodSelect(){
 
 function homeHTML(){
   const i = ui.viewIdx, isCur = i===state.periods.length-1;
-  const L = state.expenses.filter(e=>inP(e,i));
+  const L0 = state.expenses.filter(e=>inP(e,i)), L = vis(L0);
   const total = sum(L), st = periodStart(i), en = periodEnd(i);
   const days = Math.max(1, diffDays(st,en)+1);
   const t = today();
-  const all = state.expenses;
+  const all = vis(state.expenses);
   const rangeSum = (a,b) => sum(all.filter(e=>e.date>=a && e.date<=b));
   const w0 = weekStart(t);
   const mk = t.slice(0,7);
@@ -422,17 +570,18 @@ function homeHTML(){
   const weekT = rangeSum(w0,t), lwT = rangeSum(addDays(w0,-7),addDays(w0,-1));
   const monT = sum(all.filter(e=>e.date.slice(0,7)===mk)), lmT = sum(all.filter(e=>e.date.slice(0,7)===lm));
 
-  let h = periodSelect();
+  let h = periodSelect() + ctlHTML() + exBannerHTML(sum(L0)-total);
   h += `<div class="hero"><small>${esc(pname(i))}${isCur?' · aktif':''}</small><div class="big" data-ck="hero-${i}" data-count="${total}">${rp(total)}</div>
     <small>${dShort(st)} – ${isCur?'sekarang':dShort(en)} · ${days} hari</small>
-    <div class="chips"><span class="c">≈ ${rpS(total/days)}/hari</span><span class="c">${L.length} transaksi</span><button class="c" data-a="renamePeriod" data-i="${i}" style="border:0;color:#fff">✏️ Ubah nama</button></div>
+    <div class="chips"><span class="c">≈ ${rpS(total/days)}/hari</span><span class="c">${L.length} transaksi</span>${exCount()?`<span class="c">⊖ −${rpS(sum(L0)-total)}</span>`:''}<button class="c" data-a="renamePeriod" data-i="${i}" style="border:0;color:#fff">✏️ Ubah nama</button></div>
     ${isCur?`<button class="nb" data-a="openPeriod">+ Mulai periode baru</button>`:''}</div>`;
   h += balanceCardHTML();
   h += `<div class="grid3">
     <div class="st"><small>Hari ini</small><b>${rpS(todayT)}</b><span>Kemarin ${rpS(yT)}</span></div>
     <div class="st"><small>Minggu ini</small><b>${rpS(weekT)}</b><span>Lalu ${rpS(lwT)}</span></div>
     <div class="st"><small>Bulan ini</small><b>${rpS(monT)}</b><span>Lalu ${rpS(lmT)}</span></div></div>`;
-  if (!L.length) return h + `<div class="card empty">Belum ada pengeluaran di periode ini.<br>Tekan + untuk menambah.</div>`;
+  if (!L.length) return h + `<div class="card empty">${exCount() && L0.length ? 'Semua pengeluaran periode ini sedang dikecualikan.' : 'Belum ada pengeluaran di periode ini.<br>Tekan + untuk menambah.'}</div>`;
+  h += appreciationHTML(i, L0);
 
   // chart harian
   const byDate = group(L,e=>e.date);
@@ -447,13 +596,15 @@ function homeHTML(){
   }
   h += `<div class="card"><h2>Pengeluaran harian${days>31?' (31 hari terakhir)':''}</h2><div class="bars">${bars}</div></div>`;
 
-  // per tipe
-  const byType = Object.entries(group(L,e=>e.type)).sort((a,b)=>b[1]-a[1]);
-  let acc = 0;
-  const stops = byType.map(([k,v])=>{ const s=acc/total*100; acc+=v; return `${col(k)} ${s}% ${acc/total*100}%`; }).join(',');
-  h += `<div class="card"><h2>Per tipe</h2><div class="donutw"><div class="donut" style="background:conic-gradient(${stops})"><div><span><b>${rpS(total)}</b><br><small>total</small></span></div></div>
-    <div class="leg">${byType.map(([k,v])=>`<div><span><i class="dot" style="background:${col(k)}"></i>${esc(k)}</span><b>${Math.round(v/total*100)}%</b></div>`).join('')}</div></div>
-    <div style="margin-top:8px">${byType.map(([k,v])=>barRow(`${icon(k)} ${esc(k)}`,v,byType[0][1],col(k))).join('')}</div></div>`;
+  // per tipe (Detail) atau per kelompok primer/sekunder/tersier (Ringkas)
+  const items = ui.detail
+    ? Object.entries(group(L,e=>e.type)).sort((a,b)=>b[1]-a[1]).map(([k,v]) => ({v,c:col(k),label:`${icon(k)} ${esc(k)}${tierDot(k)}`,leg:esc(k)}))
+    : tierGroups(L).map(([k,v]) => ({v,c:tierColor(k),label:`${k==='-'?'📦':TIERS[k].e} ${tierName(k)}`,leg:tierName(k),sub:subTypes(L,k)}));
+  let acc = 0; const imax = Math.max(...items.map(x=>x.v));
+  const stops = items.map(x=>{ const s0=acc/total*100; acc+=x.v; return `${x.c} ${s0}% ${acc/total*100}%`; }).join(',');
+  h += `<div class="card"><h2>${ui.detail?'Per tipe':'Per kelompok'}</h2><div class="donutw"><div class="donut" style="background:conic-gradient(${stops})"><div><span><b>${rpS(total)}</b><br><small>total</small></span></div></div>
+    <div class="leg">${items.map(x=>`<div><span><i class="dot" style="background:${x.c}"></i>${x.leg}</span><b>${Math.round(x.v/total*100)}%</b></div>`).join('')}</div></div>
+    <div style="margin-top:8px">${items.map(x=>barRow(x.label,x.v,imax,x.c)+(x.sub?`<div class="mut sub">${x.sub}</div>`:'')).join('')}</div></div>`;
 
   // per metode
   const byMeth = Object.entries(group(L,e=>e.method)).sort((a,b)=>b[1]-a[1]);
@@ -531,8 +682,9 @@ function balanceSheet(){
 }
 
 function itemHTML(e){
-  return `<div class="it" role="button" tabindex="0" data-a="edit" data-id="${e.id}"><div class="ic" style="background:${col(e.type)}">${icon(e.type)}</div>
-    <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span>${e.note?`<span class="mut note">“${esc(e.note)}”</span>`:''}</div><div class="r"><span class="amt-s">${rp(e.amount)}</span><br><span class="eb">✏️ Edit</span></div></div>`;
+  const k = tierOf(e.type);
+  return `<div class="swr"><button class="swd" data-a="swipeDel" data-id="${e.id}" tabindex="-1" aria-hidden="true">Hapus</button><div class="it" role="button" tabindex="0" data-a="edit" data-id="${e.id}"><div class="ic" style="background:${col(e.type)}">${icon(e.type)}${k?`<i class="tb" style="background:${TIERS[k].c}"></i>`:''}</div>
+    <div class="m"><b>${esc(e.type)}</b><span class="mut">${esc(e.method)} · ${dShort(e.date)}</span>${e.note?`<span class="mut note">“${esc(e.note)}”</span>`:''}</div><div class="r"><span class="amt-s">${rp(e.amount)}</span><br><span class="eb">✏️ Edit</span></div></div></div>`;
 }
 
 function moreHTML(c){
@@ -540,7 +692,7 @@ function moreHTML(c){
   let h = '';
   // dibanding periode sebelumnya
   if (i>0){
-    const tp = sum(state.expenses.filter(e=>inP(e,i-1)));
+    const tp = sum(vis(state.expenses).filter(e=>inP(e,i-1)));
     const dp = Math.max(1, diffDays(periodStart(i-1),periodEnd(i-1))+1);
     const avg = total/days, avgP = tp/dp;
     const pct = avgP ? Math.round((avg-avgP)/avgP*100) : null;
@@ -591,31 +743,26 @@ function moreHTML(c){
 }
 
 function recapHTML(){
-  const i = ui.viewIdx, L = state.expenses.filter(e=>inP(e,i));
-  const mode = ui.recap;
+  const i = ui.viewIdx, mode = ui.recap, V = vis(state.expenses), Lp = V.filter(e=>inP(e,i));
+  const MN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const by = (list,fn) => { const m = {}; list.forEach(e => (m[fn(e)] = m[fn(e)]||[]).push(e)); return m; };
+  const mk = (label,sub,list) => ({label,sub,list,total:sum(list)});
   let rows = [], note = '';
-  if (mode==='day'){
-    const m = group(L,e=>e.date), c = {}; L.forEach(e=>c[e.date]=(c[e.date]||0)+1);
-    rows = Object.keys(m).sort().reverse().map(d=>({label:dFull(d),sub:`${c[d]} transaksi`,total:m[d]}));
-    note = esc(pname(i));
-  } else if (mode==='week'){
-    const m = group(L,e=>weekStart(e.date)), c = {}; L.forEach(e=>{const k=weekStart(e.date);c[k]=(c[k]||0)+1;});
-    rows = Object.keys(m).sort().reverse().map(w=>({label:`${dShort(w)} – ${dShort(addDays(w,6))}`,sub:`${c[w]} transaksi`,total:m[w]}));
-    note = esc(pname(i)) + ' · minggu Senin–Minggu';
-  } else if (mode==='month'){
-    const m = group(state.expenses,e=>e.date.slice(0,7)), c = {}; state.expenses.forEach(e=>{const k=e.date.slice(0,7);c[k]=(c[k]||0)+1;});
-    rows = Object.keys(m).sort().reverse().map(k=>({label:`${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][+k.slice(5)-1]} ${k.slice(0,4)}`,sub:`${c[k]} transaksi`,total:m[k]}));
-    note = 'Semua data';
-  } else {
-    rows = state.periods.map((p,k)=>{const l=state.expenses.filter(e=>inP(e,k));return {label:esc(pname(k)),sub:`${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))} · ${l.length} transaksi`,total:sum(l)};}).reverse();
-    note = 'Semua periode';
-  }
+  if (mode==='day'){ const m = by(Lp,e=>e.date); rows = Object.keys(m).sort().reverse().map(d => mk(dFull(d),`${m[d].length} transaksi`,m[d])); note = esc(pname(i)); }
+  else if (mode==='week'){ const m = by(Lp,e=>weekStart(e.date)); rows = Object.keys(m).sort().reverse().map(w => mk(`${dShort(w)} – ${dShort(addDays(w,6))}`,`${m[w].length} transaksi`,m[w])); note = esc(pname(i)) + ' · minggu Senin–Minggu'; }
+  else if (mode==='month'){ const m = by(V,e=>e.date.slice(0,7)); rows = Object.keys(m).sort().reverse().map(k => mk(`${MN[+k.slice(5)-1]} ${k.slice(0,4)}`,`${m[k].length} transaksi`,m[k])); note = 'Semua data'; }
+  else { rows = state.periods.map((p,k) => { const l = V.filter(e=>inP(e,k)); return mk(esc(pname(k)),`${dShort(periodStart(k))} – ${k===state.periods.length-1?'sekarang':dShort(periodEnd(k))} · ${l.length} transaksi`,l); }).reverse(); note = 'Semua periode'; }
+  const segsOf = list => ui.detail
+    ? Object.entries(group(list,e=>e.type)).sort((a,b)=>b[1]-a[1]).map(([k,v]) => [v,col(k),esc(k)])
+    : tierGroups(list).map(([k,v]) => [v,tierColor(k),tierName(k)]);
   const mx = Math.max(...rows.map(r=>r.total),1), tot = sum(rows.map(r=>({amount:r.total})));
+  const legend = rows.length ? segsOf(rows.flatMap(r=>r.list)).slice(0,8).map(([v,c,n]) => `<span><i class="dot" style="background:${c}"></i>${n}</span>`).join('') : '';
   const seg = [['day','Harian'],['week','Mingguan'],['month','Bulanan'],['period','Periode']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-a="recap" data-v="${k}">${l}</button>`).join('');
-  return `${mode==='day'||mode==='week'?periodSelect():''}<div class="seg">${seg}</div>
+  const scope = (mode==='day'||mode==='week') ? state.expenses.filter(e=>inP(e,i)) : state.expenses;
+  return `${mode==='day'||mode==='week'?periodSelect():''}<div class="seg">${seg}</div>${ctlHTML()}${exBannerHTML(exCount()?sum(scope.filter(isExcl)):0)}
     <div class="card"><h2>Rekap · ${note}</h2>
-    ${rows.length?`<div class="mut" style="margin:-4px 0 6px">Rata-rata ${rp(tot/rows.length)} per ${({day:'hari',week:'minggu',month:'bulan',period:'periode'})[mode]}</div>
-    ${rows.map(r=>`<div class="rrow"><div class="h"><div>${r.label}<div class="mut">${r.sub}</div></div><b>${rp(r.total)}</b></div><div class="bar"><i style="width:${r.total/mx*100}%;background:var(--pri)"></i></div></div>`).join('')}`:'<div class="empty">Belum ada data.</div>'}</div>`;
+    ${rows.length?`<div class="mut" style="margin:-4px 0 6px">Rata-rata ${rp(tot/rows.length)} per ${({day:'hari',week:'minggu',month:'bulan',period:'periode'})[mode]}</div><div class="lgd">${legend}</div>
+    ${rows.map(r=>`<div class="rrow"><div class="h"><div>${r.label}<div class="mut">${r.sub}</div></div><b>${rp(r.total)}</b></div><div class="bar"><div class="stk" style="width:${r.total/mx*100}%">${segsOf(r.list).map(([v,c,n])=>`<i style="flex:${v};background:${c}" title="${n}"></i>`).join('')}</div></div></div>`).join('')}`:'<div class="empty">Belum ada data.</div>'}</div>`;
 }
 
 function histList(){
@@ -643,8 +790,8 @@ function setHTML(){
   <div class="card"><h2>Periode</h2>${ps}<button class="btn pri" data-a="openPeriod">+ Mulai periode baru</button>
     <button class="btn" data-a="editStart">Ubah tanggal mulai periode aktif</button>
     ${state.periods.length>1?`<button class="btn red" data-a="undoPeriod">Batalkan periode terakhir</button>`:''}</div>
-  <div class="card"><h2>Tipe pengeluaran</h2><div class="mut" style="margin-bottom:10px">Hapus tipe → pengeluarannya pindah ke "${FALLBACK}".</div>
-    ${state.types.map(t=>`<span class="pill">${icon(t)} ${esc(t)}${t===FALLBACK?'':`<button data-a="delType" data-v="${esc(t)}">×</button>`}</span>`).join('')}
+  <div class="card"><h2>Tipe pengeluaran</h2><div class="mut" style="margin-bottom:10px">Ketuk tipe untuk memilih kelompoknya (Primer · Sekunder · Tersier). Hapus tipe → pengeluarannya pindah ke "${FALLBACK}".</div>
+    ${state.types.map(t=>`<span class="pill"><button class="tp" data-a="tierSheet" data-v="${esc(t)}">${tierDot(t)}${icon(t)} ${esc(t)}</button>${t===FALLBACK?'':`<button data-a="delType" data-v="${esc(t)}">×</button>`}</span>`).join('')}
     <div class="row" style="margin-top:6px"><input type="text" id="sNew" placeholder="Tipe baru…"><button class="btn pri" data-a="addTypeS">Tambah</button></div></div>
   <div class="card"><h2>Tracker saldo</h2><div class="row" style="align-items:center;justify-content:space-between"><div style="flex:1"><b>${state.balanceOn?'Aktif':'Nonaktif'}</b><div class="mut">Saldo tiap metode berkurang otomatis saat kamu mencatat pengeluaran, dan bertambah saat kamu menambah saldo. Jika dimatikan, data saldo tetap tersimpan.</div></div><button class="sw ${state.balanceOn?'on':''}" data-a="toggleBal" aria-label="Nyalakan atau matikan tracker saldo"><i></i></button></div></div>
   <div class="card"><h2>Data</h2><button class="btn" data-a="exportCsv">Export CSV</button></div>`;
@@ -653,10 +800,13 @@ function setHTML(){
 /* ---------- sheets ---------- */
 function showSheet(){
   const sh = sheetEl(), was = sh.classList.contains('open') && !sh.classList.contains('closing');
+  const keep = was && sh.querySelector('.sh') ? sh.querySelector('.sh').scrollTop : 0;
   sh.classList.remove('closing');
-  sh.innerHTML = ({exp:expenseSheet,per:periodSheet,ren:renameSheet,bal:balanceSheet})[form.kind]();
+  sh.innerHTML = ({exp:expenseSheet,per:periodSheet,ren:renameSheet,bal:balanceSheet,tier:tierSheet,excl:exclSheet})[form.kind]();
   sh.classList.toggle('fresh', !was);   // animasi geser hanya saat pertama dibuka, bukan tiap ketukan
   sh.classList.add('open'); document.body.style.overflow='hidden';
+  if (keep){ const s2 = sh.querySelector('.sh'); if (s2) s2.scrollTop = keep; }   // posisi gulir tidak lompat saat memilih
+  initSegs(sh);
 }
 const sheetEl = () => $('sheet');
 function closeSheet(){
@@ -673,8 +823,9 @@ function expenseSheet(){
   <div class="seg"><button class="${f.dmode==='today'?'on':''}" data-a="dmode" data-v="today">Hari ini</button><button class="${f.dmode==='custom'?'on':''}" data-a="dmode" data-v="custom">Pilih tanggal</button></div>
   ${f.dmode==='custom'?`<input type="date" id="fDate" value="${f.date}" max="${today()}">`:''}
   <label class="l">Tipe</label>
-  <div>${state.types.map(t=>`<button class="pill ${f.type===t?'on':''}" data-a="pickType" data-v="${esc(t)}">${icon(t)} ${esc(t)}</button>`).join('')}</div>
+  <div>${state.types.map(t=>`<button class="pill ${f.type===t?'on':''}" data-a="pickType" data-v="${esc(t)}">${tierDot(t)}${icon(t)} ${esc(t)}</button>`).join('')}</div>
   <div class="row"><input type="text" id="fNew" placeholder="+ Tipe baru (jadi permanen)" value="${esc(f.newType)}"><button class="btn" data-a="addType">Tambah</button></div>
+  <div class="nt"><span class="mut">Kelompok tipe baru:</span> ${TKEYS.map(k=>`<button class="pill sm ${f.newTier===k?'on':''}" data-a="newTier" data-v="${k}"><i class="td" style="background:${TIERS[k].c}"></i>${TIERS[k].n}</button>`).join('')}</div>
   <label class="l">Besaran</label>
   <div class="amt"><span>Rp</span><input id="fAmt" inputmode="numeric" placeholder="0" value="${f.amount}" autocomplete="off"></div>
   <div class="mut" id="fPrev" style="margin-top:4px">${f.amount?rp(f.amount):''}</div>
@@ -736,12 +887,12 @@ const A = {
     if (logoTaps>=7){ logoTaps = 0; rain(); toast('🤑 Hujan uang!'); }
   },
   openAdd:()=>{
-    form = {kind:'exp',id:null,dmode:'today',date:today(),type:localStorage.getItem('lastType')&&state.types.includes(localStorage.getItem('lastType'))?localStorage.getItem('lastType'):state.types[0],amount:'',method:localStorage.getItem('lastMethod')||'BCA',note:'',newType:'',err:''};
+    form = {kind:'exp',id:null,dmode:'today',date:today(),type:localStorage.getItem('lastType')&&state.types.includes(localStorage.getItem('lastType'))?localStorage.getItem('lastType'):state.types[0],amount:'',method:localStorage.getItem('lastMethod')||'BCA',note:'',newType:'',newTier:'',err:''};
     showSheet();
   },
   edit:d=>{
     const e = state.expenses.find(x=>x.id===d.id); if(!e) return;
-    form = {kind:'exp',id:e.id,dmode:e.date===today()?'today':'custom',date:e.date,type:e.type,amount:String(e.amount),method:e.method,note:e.note||'',newType:'',err:''};
+    form = {kind:'exp',id:e.id,dmode:e.date===today()?'today':'custom',date:e.date,type:e.type,amount:String(e.amount),method:e.method,note:e.note||'',newType:'',newTier:'',err:''};
     showSheet();
   },
   closeSheet,
@@ -751,19 +902,20 @@ const A = {
   addType:()=>{
     const v = (form.newType||'').trim(); if(!v) return;
     const ex = state.types.find(t=>t.toLowerCase()===v.toLowerCase());
-    if (ex) form.type = ex; else { addType(v); form.type = v; }
-    form.newType=''; showSheet();
+    if (ex) form.type = ex; else { addType(v,form.newTier); form.type = v; }
+    form.newType=''; form.newTier=''; showSheet();
   },
-  addTypeS:()=>{ const v=$('sNew').value.trim(); if(v){ const ex=state.types.find(t=>t.toLowerCase()===v.toLowerCase()); if(!ex) addType(v); render(); } },
+  addTypeS:()=>{ const v=$('sNew').value.trim(); if(v){ const ex=state.types.find(t=>t.toLowerCase()===v.toLowerCase()); if(!ex){ addType(v); render(); A.tierSheet({v}); } else render(); } },
   delType:async d=>{
     if(!confirm(`Hapus tipe "${d.v}"? Pengeluaran dengan tipe ini dipindah ke "${FALLBACK}".`)) return;
     const aff = state.expenses.filter(e=>e.type===d.v);
     state.types = state.types.filter(t=>t!==d.v); if(!state.types.includes(FALLBACK)) state.types.push(FALLBACK);
+    const tr = {...state.tiers}; delete tr[d.v]; state.tiers = tr; ui.exT.delete(d.v);
     aff.forEach(e=>e.type=FALLBACK);
     render();
     try{
       for (let i=0;i<aff.length;i+=400){ const b=writeBatch(db); aff.slice(i,i+400).forEach(e=>b.update(doc(db,'users',state.uid,'expenses',e.id),{type:FALLBACK})); b.commit().catch(fail); }
-      updateDoc(userRef(),{types:state.types}).catch(fail);
+      updateDoc(userRef(),{types:state.types,tiers:state.tiers}).catch(fail);
     }catch(e){ fail(e); }
   },
   saveExpense:(d,el)=>{
@@ -778,21 +930,30 @@ const A = {
     const isNew = !form.id, method = form.method, rc = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
     const cx = rc ? rc.left+rc.width/2 : innerWidth/2, cy = rc ? rc.top : innerHeight*0.6;
     const projected = isNew && state.balanceOn && balOf(method)!==null ? balOf(method) - amt : null;
+    const tk = tierOf(form.type); let warn = null;
+    if (isNew && tk==='t'){   // tersier mulai dominan? ingatkan sekali saja per periode, tanpa menghakimi
+      const L0 = state.expenses.filter(e=>inP(e,ui.viewIdx)), g = Object.fromEntries(tierGroups(L0));
+      const asg = sum(L0) - (g['-']||0) + amt, share = ((g.t||0)+amt)/asg;
+      if (share>0.3 && ui.warnedTier!==ui.viewIdx){ ui.warnedTier = ui.viewIdx; warn = Math.round(share*100); }
+    }
     closeSheet(); render();
     if (isNew){
       const big = amt>=500000, tiny = amt<=10000;
-      burst(cx, cy, big?['💸','💸','💸','😱']:tiny?['🪙','✨']:['💸','💵','🪙'], big?12:8);
-      toast(big?'Wah, gede juga! 💸 Dompet menjerit':tiny?'Hemat! 🪙 Receh pun dicatat':'Tersimpan ✓');
-      if (projected!==null && projected<0) setTimeout(()=>toast('Saldo '+method+' jadi minus 😱'), 1700);
+      const fx = tk==='t' ? ['🎈','✨','💸'] : tk==='p' ? ['🛡️','🪙'] : tk==='s' ? ['🧩','🪙'] : big ? ['💸','💸','💸','😱'] : tiny ? ['🪙','✨'] : ['💸','💵','🪙'];
+      burst(cx, cy, fx, big?12:8);
+      toast(tk==='t' ? (big?'Wah, gede juga! 🎈💸':'Tercatat 🎈 nikmati!') : tk==='p' ? 'Tercatat ✓ 🛡️' : tk==='s' ? 'Tercatat ✓ 🧩' : big?'Wah, gede juga! 💸 Dompet menjerit':tiny?'Hemat! 🪙 Receh pun dicatat':'Tersimpan ✓');
+      if (warn) setTimeout(()=>toast(`Tersier sudah ${warn}% periode ini 👀`), 1700);
+      else if (projected!==null && projected<0) setTimeout(()=>toast('Saldo '+method+' jadi minus 😱'), 1700);
       if (navigator.vibrate) navigator.vibrate(12);
     }
   },
   delExp:()=>{ if(!confirm('Hapus pengeluaran ini?')) return; deleteDoc(doc(db,'users',state.uid,'expenses',form.id)).catch(fail); closeSheet(); },
   openPeriod:()=>{ form={kind:'per',pmode:'today',date:today(),err:''}; showSheet(); },
-  toggleBal:()=>{
+  toggleBal:(d,el)=>{
     state.balanceOn = !state.balanceOn;
     if (!state.balanceOn && ui.tab==='bal') ui.tab='home';
-    updateDoc(userRef(),{balanceOn:state.balanceOn}).catch(fail); render();
+    updateDoc(userRef(),{balanceOn:state.balanceOn}).catch(fail);
+    if (el && el.classList){ el.classList.toggle('on'); setTimeout(render, 280); } else render();   // biarkan knob meluncur dulu
   },
   openBal:d=>{
     const ks = Object.keys(METHODS), from = d.m||ks[0];
@@ -821,6 +982,26 @@ const A = {
     state.balanceLog = [{t:now,m,kind:f.mode,amount:amt,before:cur,after:base}, ...state.balanceLog].slice(0,100);
     updateDoc(userRef(),{[`balances.${m}`]:{base,at:now},balanceLog:state.balanceLog}).catch(fail);
     closeSheet(); render();
+  },
+  top:()=>{ window.scrollTo({top:0,behavior:REDUCE?'auto':'smooth'}); },
+  mode:d=>{ const det = d.v==='detail'; if (ui.detail===det) return; ui.detail = det; try{ localStorage.setItem('detail',det?'1':'0'); }catch(e){} animate(); render(); },
+  tierSheet:d=>{ form = {kind:'tier',type:d.v}; showSheet(); },
+  setTier:d=>{
+    const t = {...state.tiers}, ty = form.type; if (d.v) t[ty] = d.v; else delete t[ty];
+    state.tiers = t; updateDoc(userRef(),{tiers:t}).catch(fail); closeSheet(); render();
+  },
+  newTier:d=>{ form.newTier = form.newTier===d.v ? '' : d.v; showSheet(); },
+  openExcl:()=>{ form = {kind:'excl'}; showSheet(); },
+  exToggleType:d=>{ ui.exT.has(d.v) ? ui.exT.delete(d.v) : ui.exT.add(d.v); exRefresh(); },
+  exToggleTier:d=>{ const ts = state.types.filter(t=>tierOf(t)===d.v), all = ts.every(t=>ui.exT.has(t)); ts.forEach(t => all ? ui.exT.delete(t) : ui.exT.add(t)); exRefresh(); },
+  exToggleId:d=>{ ui.exI.has(d.id) ? ui.exI.delete(d.id) : ui.exI.add(d.id); exRefresh(); },
+  exReset:()=>{ ui.exT.clear(); ui.exI.clear(); if (form && form.kind==='excl') exRefresh(); else render(); },
+  swipeDel:d=>{
+    const e = state.expenses.find(x=>x.id===d.id); if (!e) return;
+    const {id,...data} = e; swOpen = null;
+    state.expenses = state.expenses.filter(x=>x.id!==d.id); render();
+    deleteDoc(doc(db,'users',state.uid,'expenses',d.id)).catch(fail);
+    toastAct('Pengeluaran dihapus','Urungkan',()=>{ state.expenses = [...state.expenses,e]; render(); setDoc(doc(db,'users',state.uid,'expenses',d.id),data).catch(fail); });
   },
   toggleMore:()=>{ ui.more=!ui.more; render(); },
   renamePeriod:d=>{ form={kind:'ren',i:+d.i,name:state.periodNames[+d.i]||'',err:''}; showSheet(); },
@@ -889,15 +1070,20 @@ function savePeriods(){
   state.periodNames = n;
   return updateDoc(userRef(),{periods:state.periods,periodNames:n}).catch(fail);
 }
-function addType(v){
+function exRefresh(){ showSheet(); render(); }
+function addType(v,tier){
   const t = state.types.slice(); const i = t.indexOf(FALLBACK);
   t.splice(i<0?t.length:i,0,v); state.types = t;
-  updateDoc(userRef(),{types:t}).catch(fail);
+  const up = {types:t}; if (tier){ state.tiers = {...state.tiers,[v]:tier}; up.tiers = state.tiers; }
+  updateDoc(userRef(),up).catch(fail);
 }
 
 const app = $('app');
 document.addEventListener('click', e => {
+  if (Date.now()-swipedAt<350){ e.preventDefault(); return; }                       // klik sisa dari geseran
+  const row = e.target.closest('.swr .it'); if (row && row===swOpen){ closeSwipe(); return; }   // ketuk baris terbuka = tutup
   const el = e.target.closest('[data-a]'); if(!el) return;
+  if (navigator.vibrate && !REDUCE && el.matches('.pill,.seg button,.nav button,.sw')) navigator.vibrate(6);
   e.preventDefault(); const f = A[el.dataset.a]; if(f) f(el.dataset, el);
 });
 document.addEventListener('input', e => {
@@ -938,6 +1124,51 @@ document.addEventListener('keydown', e => {
 if ($('fx')) $('fx').addEventListener('animationend', e => { if (e.target.parentNode===e.currentTarget) e.target.remove(); });
 applyTheme(ui.loginUser);
 
+/* ---------- gestur ala iOS ---------- */
+// tarik sheet ke bawah untuk menutup (pegas saat dilepas kalau kurang jauh)
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest && e.target.closest('.sh .grab, .sh .shh'); if (!g || e.target.closest('button')) return;
+  const sh = g.closest('.sh'); drag = { sh, y0:e.clientY, t0:performance.now(), dy:0, id:e.pointerId };
+  sh.style.transition = 'none'; try{ g.setPointerCapture(e.pointerId); }catch(_){}
+});
+// geser baris ke kiri untuk menghapus (ada "Urungkan")
+document.addEventListener('pointerdown', e => {
+  const it = e.target.closest && e.target.closest('.swr .it');
+  if (swOpen && it!==swOpen) closeSwipe();
+  if (!it) return;
+  sw = { it, x0:e.clientX, y0:e.clientY, base: it===swOpen ? -84 : 0, dx:0, active:false, id:e.pointerId };
+});
+document.addEventListener('pointermove', e => {
+  if (drag && e.pointerId===drag.id){
+    drag.dy = Math.max(0, e.clientY-drag.y0); drag.sh.style.transform = `translateY(${drag.dy}px)`;
+    const ov = $('sheet').querySelector('.ov'); if (ov) ov.style.opacity = Math.max(0, 1-drag.dy/480);
+  }
+  if (sw && e.pointerId===sw.id){
+    const dx = e.clientX-sw.x0, dy = e.clientY-sw.y0;
+    if (!sw.active){
+      if (Math.abs(dx)>8 && Math.abs(dx)>Math.abs(dy)*1.5){ sw.active = true; sw.it.style.transition = 'none'; }
+      else { if (Math.abs(dy)>10) sw = null; return; }
+    }
+    sw.dx = Math.max(-84-28, Math.min(0, sw.base+dx)); sw.it.style.transform = `translateX(${sw.dx}px)`;
+  }
+});
+['pointerup','pointercancel'].forEach(t => document.addEventListener(t, e => {
+  if (drag && e.pointerId===drag.id){
+    const { sh, dy, t0 } = drag, v = dy/Math.max(1,performance.now()-t0); drag = null;
+    const ov = $('sheet').querySelector('.ov');
+    if (dy>110 || (v>0.7 && dy>30)) closeSheet();      // animasi tutup melanjutkan dari posisi jari
+    else { sh.style.transition = 'transform .45s cubic-bezier(.3,1.4,.5,1)'; sh.style.transform = ''; if (ov) ov.style.opacity = ''; setTimeout(()=>{ sh.style.transition = ''; }, 470); }
+  }
+  if (sw && e.pointerId===sw.id){
+    const { it, active, dx } = sw; sw = null; if (!active) return;
+    swipedAt = Date.now(); it.style.transition = 'transform .4s cubic-bezier(.3,1.3,.5,1)';
+    if (dx < -42){ it.style.transform = 'translateX(-84px)'; swOpen = it; } else { it.style.transform = ''; if (swOpen===it) swOpen = null; }
+  }
+}));
+if ($('toast')) $('toast').addEventListener('click', e => {
+  if (e.target.dataset && e.target.dataset.undo && undoFn){ const f = undoFn; undoFn = null; $('toast').classList.remove('show','act'); f(); }
+});
+
 /* ---------- PWA ---------- */
 if (typeof navigator!=='undefined' && 'serviceWorker' in navigator){
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
@@ -965,7 +1196,7 @@ else {
   const onErr = e => { console.error(e); view='error'; ui.err='Tidak bisa membaca data. Cek Firestore rules & koneksi.<br><small>'+esc(e.message||e)+'</small>'; render(); };
   onAuthStateChanged(auth, user => {
     unsubs.forEach(f=>f()); unsubs=[]; loaded={u:false,x:false};
-    if (!user){ view='login'; ui.tab='home'; ui.filter=''; ui.q=''; ui.more=false; state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false}; render(); return; }
+    if (!user){ view='login'; ui.tab='home'; ui.filter=''; ui.q=''; ui.more=false; ui.exT.clear(); ui.exI.clear(); state={name:'',uid:'',periods:[],periodNames:[],types:[],expenses:[],pending:false,balances:{},balanceLog:[],balanceOn:false,tiers:{}}; render(); return; }
     state.uid = user.uid;
     state.name = Object.keys(ACCOUNTS).find(k=>ACCOUNTS[k].email===user.email) || user.email;
     view='loading'; render();
@@ -973,7 +1204,7 @@ else {
       if (!snap.exists()){ setDoc(userRef(),{periods:[today()],periodNames:[''],types:DEFAULT_TYPES}).catch(onErr); return; }
       const d = snap.data();
       state.periods = [...d.periods].sort();
-      state.balances = d.balances || {}; state.balanceLog = d.balanceLog || []; state.balanceOn = !!d.balanceOn;
+      state.balances = d.balances || {}; state.balanceLog = d.balanceLog || []; state.balanceOn = !!d.balanceOn; state.tiers = d.tiers || {};
       state.periodNames = state.periods.map((_,k)=>(Array.isArray(d.periodNames)&&d.periodNames[k])||'');
       state.types = d.types && d.types.length ? d.types : DEFAULT_TYPES;
       loaded.u = true; ready();
